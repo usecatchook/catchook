@@ -1,0 +1,59 @@
+meta {
+  name: Register
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{apiUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "john.doe@example.com",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+  }
+}
+
+tests {
+  test("Status should be 201", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+  
+  test("Should return success", function() {
+    expect(res.getBody()).to.have.property('success', true);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody()).to.have.property('data');
+  });
+  
+  test("Should return user and tokens", function() {
+    const data = res.getBody().data;
+    expect(data).to.have.property('user');
+    expect(data).to.have.property('tokens');
+    
+    expect(data.user).to.have.property('id');
+    expect(data.user).to.have.property('email', 'john.doe@example.com');
+    expect(data.user).to.have.property('first_name', 'John');
+    expect(data.user).to.have.property('last_name', 'Doe');
+    
+    expect(data.tokens).to.have.property('access_token');
+    expect(data.tokens).to.have.property('refresh_token');
+    expect(data.tokens).to.have.property('token_type', 'Bearer');
+  });
+  
+  // Sauvegarder les tokens et user ID pour les prochaines requêtes
+  if (res.getStatus() === 201) {
+    const data = res.getBody().data;
+    bru.setEnvVar("accessToken", data.tokens.access_token);
+    bru.setEnvVar("refreshToken", data.tokens.refresh_token);
+    bru.setEnvVar("userId", data.user.id.toString());
+  }
+}

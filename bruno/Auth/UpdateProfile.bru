@@ -1,0 +1,45 @@
+meta {
+  name: Update Profile
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{apiUrl}}/users/profile
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "first_name": "John Updated",
+    "last_name": "Doe Updated"
+  }
+}
+
+tests {
+  test("Status should be 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Should return success", function() {
+    expect(res.getBody()).to.have.property('success', true);
+    expect(res.getBody()).to.have.property('message', 'Profile updated successfully');
+    expect(res.getBody()).to.have.property('data');
+  });
+  
+  test("Should return updated profile", function() {
+    const data = res.getBody().data;
+    expect(data).to.have.property('first_name', 'John Updated');
+    expect(data).to.have.property('last_name', 'Doe Updated');
+    expect(data).to.have.property('full_name', 'John Updated Doe Updated');
+  });
+}

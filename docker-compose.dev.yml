@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: webhook-api-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webhook_api
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d webhook_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - webhook-api-dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: webhook-api-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ""
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - webhook-api-dev
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: webhook-api-redis-commander-dev
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      HTTP_USER: admin
+      HTTP_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - webhook-api-dev
+    profiles:
+      - gui
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: webhook-api-pgadmin-dev
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@webhook-api.com
+      PGLADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "8082:80"
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgladmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - webhook-api-dev
+    profiles:
+      - gui
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: webhook-api-mailhog-dev
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI port
+    networks:
+      - webhook-api-dev
+    profiles:
+      - email
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
+
+networks:
+  webhook-api-dev:
+    driver: bridge
+    name: webhook-api-dev

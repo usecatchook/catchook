@@ -1,0 +1,42 @@
+meta {
+  name: Get Profile
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{apiUrl}}/users/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("Status should be 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Should return success", function() {
+    expect(res.getBody()).to.have.property('success', true);
+    expect(res.getBody()).to.have.property('message', 'Profile retrieved successfully');
+    expect(res.getBody()).to.have.property('data');
+  });
+  
+  test("Should return user profile", function() {
+    const data = res.getBody().data;
+    expect(data).to.have.property('id');
+    expect(data).to.have.property('email');
+    expect(data).to.have.property('first_name');
+    expect(data).to.have.property('last_name');
+    expect(data).to.have.property('full_name');
+    expect(data).to.have.property('is_active', true);
+    expect(data).to.have.property('created_at');
+    
+    // Vérifier qu'il n'y a pas de données sensibles
+    expect(data).to.not.have.property('password');
+    expect(data).to.not.have.property('password_hash');
+  });
+}

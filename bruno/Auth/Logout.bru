@@ -1,0 +1,35 @@
+meta {
+  name: Logout
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{apiUrl}}/auth/logout
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("Status should be 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Should return success", function() {
+    expect(res.getBody()).to.have.property('success', true);
+    expect(res.getBody()).to.have.property('message', 'Logout successful');
+  });
+  
+  test("Data should be null", function() {
+    expect(res.getBody().data).to.be.null;
+  });
+  
+  // Nettoyer les tokens après déconnexion
+  bru.setEnvVar("accessToken", "");
+  bru.setEnvVar("refreshToken", "");
+  bru.setEnvVar("userId", "");
+}

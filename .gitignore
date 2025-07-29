@@ -15,4 +15,5 @@
 go.work
 
 .idea/
-
+.cursor/
+/tmp
