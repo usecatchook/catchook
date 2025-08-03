@@ -244,3 +244,21 @@ func (r *userRepository) UpdatePassword(ctx context.Context, userID int, hashedP
 
 	return nil
 }
+
+func (r *userRepository) CountUsers(ctx context.Context) (int64, error) {
+	r.logger.Debug(ctx, "Counting users in database")
+
+	count, err := r.queries.CountUsers(ctx)
+	if err != nil {
+		r.logger.Error(ctx, "Failed to count users in database",
+			logger.Error(err),
+		)
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	r.logger.Debug(ctx, "Users counted successfully",
+		logger.Int("count", int(count)),
+	)
+
+	return count, nil
+}

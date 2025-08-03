@@ -37,8 +37,9 @@ type Container struct {
 	JWT       jwt.Manager
 	Validator *validator.Validator
 
-	UserService user.Service
-	AuthService auth.Service
+	UserService  user.Service
+	AuthService  auth.Service
+	SetupService service.SetupService
 }
 
 func NewContainer(cfg *config.Config, logger logger.Logger) (*Container, error) {
@@ -107,6 +108,7 @@ func (c *Container) initServices() {
 	// Services
 	c.UserService = service.NewUserService(userRepo, c.Cache, c.Logger)
 	c.AuthService = service.NewAuthService(userRepo, c.UserService, c.JWT, c.Logger)
+	c.SetupService = service.NewSetupService(userRepo, c.Logger)
 
 	c.Logger.Info(context.Background(), "Services initialized")
 }
@@ -191,6 +193,8 @@ func (c *Container) SetupRoutes(app *fiber.App) {
 	// API routes
 	api := app.Group("/api/v1")
 
+	c.setupSetupRoutes(api)
+
 	c.setupAuthRoutes(api)
 
 	c.setupUserRoutes(api)
@@ -207,6 +211,12 @@ func (c *Container) setupAuthRoutes(api fiber.Router) {
 	auth.Post("/register", c.handleRegister)
 	auth.Post("/login", c.handleLogin)
 	auth.Post("/refresh", c.handleRefreshToken)
+}
+
+func (c *Container) setupSetupRoutes(api fiber.Router) {
+	setup := api.Group("/setup")
+
+	setup.Get("/status", c.handleSetupStatus)
 }
 
 func (c *Container) setupUserRoutes(api fiber.Router) {

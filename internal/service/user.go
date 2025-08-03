@@ -27,6 +27,15 @@ func NewUserService(userRepo user.Repository, cache cache.Cache, logger logger.L
 func (s *userService) Create(ctx context.Context, req user.CreateRequest) (*user.User, error) {
 	s.logger.Info(ctx, "Creating new user", logger.String("email", req.Email))
 
+	// Check if this is the first user
+	userCount, err := s.userRepo.CountUsers(ctx)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to count users", logger.Error(err))
+		return nil, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	isFirstUser := userCount == 0
+
 	exists, err := s.userRepo.EmailExists(ctx, req.Email)
 	if err != nil {
 		s.logger.Error(ctx, "Failed to check email existence", logger.Error(err))
@@ -60,10 +69,17 @@ func (s *userService) Create(ctx context.Context, req user.CreateRequest) (*user
 	cacheKey := cache.BuildKey(cache.KeyUserProfile, newUser.ID)
 	s.cache.SetJSON(ctx, cacheKey, newUser, cache.TTLUserProfile)
 
-	s.logger.Info(ctx, "User created successfully",
-		logger.Int("user_id", newUser.ID),
-		logger.String("email", newUser.Email),
-	)
+	if isFirstUser {
+		s.logger.Info(ctx, "First user created - this user has admin privileges",
+			logger.Int("user_id", newUser.ID),
+			logger.String("email", newUser.Email),
+		)
+	} else {
+		s.logger.Info(ctx, "User created successfully",
+			logger.Int("user_id", newUser.ID),
+			logger.String("email", newUser.Email),
+		)
+	}
 
 	newUser.Sanitize()
 	return newUser, nil

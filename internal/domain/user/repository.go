@@ -10,4 +10,5 @@ type Repository interface {
 	Delete(ctx context.Context, id int) error
 	EmailExists(ctx context.Context, email string) (bool, error)
 	UpdatePassword(ctx context.Context, userID int, hashedPassword string) error
+	CountUsers(ctx context.Context) (int64, error)
 }

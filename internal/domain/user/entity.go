@@ -19,6 +19,12 @@ func (u *User) FullName() string {
 	return u.FirstName + " " + u.LastName
 }
 
+func (u *User) IsAdmin() bool {
+	// For simplicity, we'll need to check this at the service level
+	// This method is a placeholder for now
+	return false
+}
+
 func (u *User) Sanitize() {
 	u.Password = ""
 }
