@@ -4,16 +4,44 @@
 *.dll
 *.so
 *.dylib
+bin/
 
 # Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+coverage.html
 
 # Go workspace file
 go.work
 
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+
+# Next.js
+app/.next/
+app/out/
+
+# IDE
 .idea/
 .cursor/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
 /tmp
+*.tmp
+*.log
+
+# Database
+*.sqlite
+*.db

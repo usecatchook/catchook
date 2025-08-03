@@ -204,7 +204,7 @@ make migrate-up
 
 ## 📄 License
 
-Catchook is [MIT licensed](./LICENSE).
+Catchook is [Apache 2.0 licensed](./LICENSE).
 
 ## 🙏 Acknowledgments
 
