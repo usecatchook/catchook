@@ -107,7 +107,6 @@ Catchook is built for **performance** and **developer experience**:
 
 ```
 catchook/
-├── api/                    # API-related configs
 ├── app/                    # Next.js frontend application
 ├── cmd/api/               # API entry point
 ├── internal/              # Private Go packages
