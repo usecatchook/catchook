@@ -53,7 +53,7 @@ type RedisConfig struct {
 
 type JWTConfig struct {
 	SecretKey            string        `env:"JWT_SECRET_KEY" validate:"required,min=32"`
-	AccessTokenDuration  time.Duration `env:"JWT_ACCESS_TOKEN_DURATION" envDefault:"15m"`
+	AccessTokenDuration  time.Duration `env:"JWT_ACCESS_TOKEN_DURATION" envDefault:"24h"`
 	RefreshTokenDuration time.Duration `env:"JWT_REFRESH_TOKEN_DURATION" envDefault:"168h"` // 7 days
 	Issuer               string        `env:"JWT_ISSUER" envDefault:"webhook-api"`
 	CachePrefix          string        `env:"JWT_CACHE_PREFIX" envDefault:"jwt:"`
