@@ -20,6 +20,7 @@ type Config struct {
 type ServerConfig struct {
 	Host         string        `env:"SERVER_HOST" envDefault:"localhost"`
 	Port         int           `env:"SERVER_PORT" envDefault:"8080"`
+	Version      string        `env:"SERVER_VERSION" envDefault:"1.0.0"`
 	ReadTimeout  time.Duration `env:"SERVER_READ_TIMEOUT" envDefault:"15s"`
 	WriteTimeout time.Duration `env:"SERVER_WRITE_TIMEOUT" envDefault:"15s"`
 	IdleTimeout  time.Duration `env:"SERVER_IDLE_TIMEOUT" envDefault:"60s"`

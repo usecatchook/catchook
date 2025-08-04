@@ -17,6 +17,7 @@ import (
 
 	"github.com/theotruvelot/catchook/internal/config"
 	"github.com/theotruvelot/catchook/internal/domain/auth"
+	"github.com/theotruvelot/catchook/internal/domain/health"
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/internal/repository/postgres"
@@ -37,9 +38,9 @@ type Container struct {
 	JWT       jwt.Manager
 	Validator *validator.Validator
 
-	UserService  user.Service
-	AuthService  auth.Service
-	SetupService service.SetupService
+	UserService   user.Service
+	AuthService   auth.Service
+	HealthService health.Service
 }
 
 func NewContainer(cfg *config.Config, logger logger.Logger) (*Container, error) {
@@ -108,7 +109,7 @@ func (c *Container) initServices() {
 	// Services
 	c.UserService = service.NewUserService(userRepo, c.Cache, c.Logger)
 	c.AuthService = service.NewAuthService(userRepo, c.UserService, c.JWT, c.Logger)
-	c.SetupService = service.NewSetupService(userRepo, c.Logger)
+	c.HealthService = service.NewHealthService(c.DB, c.Redis, userRepo, c.Logger, c.Config.Server.Version)
 
 	c.Logger.Info(context.Background(), "Services initialized")
 }
@@ -188,12 +189,10 @@ func (c *Container) setupMiddlewares(app *fiber.App) {
 
 func (c *Container) SetupRoutes(app *fiber.App) {
 	// Health check
-	app.Get("/health", c.healthCheckHandler)
+	app.Get("/health", c.handleHealthCheck)
 
 	// API routes
 	api := app.Group("/api/v1")
-
-	c.setupSetupRoutes(api)
 
 	c.setupAuthRoutes(api)
 
@@ -213,12 +212,6 @@ func (c *Container) setupAuthRoutes(api fiber.Router) {
 	auth.Post("/refresh", c.handleRefreshToken)
 }
 
-func (c *Container) setupSetupRoutes(api fiber.Router) {
-	setup := api.Group("/setup")
-
-	setup.Get("/status", c.handleSetupStatus)
-}
-
 func (c *Container) setupUserRoutes(api fiber.Router) {
 	users := api.Group("/users")
 
@@ -227,34 +220,6 @@ func (c *Container) setupUserRoutes(api fiber.Router) {
 	users.Get("/profile", c.handleGetProfile)
 	users.Put("/profile", c.handleUpdateProfile)
 	users.Post("/change-password", c.handleChangePassword)
-}
-
-func (c *Container) healthCheckHandler(ctx *fiber.Ctx) error {
-	dbStatus := "ok"
-	if err := c.DB.Ping(ctx.Context()); err != nil {
-		dbStatus = "error"
-		c.Logger.Error(ctx.Context(), "Database health check failed", logger.Error(err))
-	}
-
-	redisStatus := "ok"
-	if err := c.Redis.Ping(ctx.Context()).Err(); err != nil {
-		redisStatus = "error"
-		c.Logger.Error(ctx.Context(), "Redis health check failed", logger.Error(err))
-	}
-
-	status := fiber.StatusOK
-	if dbStatus == "error" || redisStatus == "error" {
-		status = fiber.StatusServiceUnavailable
-	}
-
-	return ctx.Status(status).JSON(fiber.Map{
-		"status":    "ok",
-		"timestamp": time.Now().UTC(),
-		"services": fiber.Map{
-			"database": dbStatus,
-			"redis":    redisStatus,
-		},
-	})
 }
 
 func (c *Container) errorHandler(ctx *fiber.Ctx, err error) error {

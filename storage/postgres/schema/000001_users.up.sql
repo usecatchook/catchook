@@ -1,4 +1,4 @@
--- 001_users.sql
+-- 001_users_up.sql
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Table users
