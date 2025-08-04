@@ -1,0 +1,24 @@
+meta {
+  name: Setup
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{apiUrl}}/auth/register
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "john.doe@example.com",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
