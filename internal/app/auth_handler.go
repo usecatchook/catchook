@@ -10,33 +10,6 @@ import (
 	"github.com/theotruvelot/catchook/pkg/validator"
 )
 
-func (c *Container) handleRegister(ctx *fiber.Ctx) error {
-	var req auth.RegisterRequest
-	if err := c.Validator.ParseAndValidate(ctx, &req); err != nil {
-		if ve, ok := err.(*validator.ValidationErrors); ok {
-			return response.ValidationFailed(ctx, ve.Errors)
-		}
-		return response.BadRequest(ctx, "Invalid request format", nil)
-	}
-
-	c.Logger.Info(ctx.UserContext(), "Processing user registration",
-		logger.String("email", req.Email),
-	)
-
-	authResponse, err := c.AuthService.Register(ctx.UserContext(), req)
-	if err != nil {
-		switch err {
-		case user.ErrEmailAlreadyExists:
-			return response.Conflict(ctx, "Email already exists")
-		default:
-			c.Logger.Error(ctx.UserContext(), "Registration failed", logger.Error(err))
-			return response.InternalError(ctx, "Registration failed")
-		}
-	}
-
-	return response.Created(ctx, authResponse, "User registered successfully")
-}
-
 func (c *Container) handleLogin(ctx *fiber.Ctx) error {
 	var req auth.LoginRequest
 	if err := c.Validator.ParseAndValidate(ctx, &req); err != nil {

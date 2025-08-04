@@ -11,14 +11,14 @@ import (
 type Querier interface {
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CountUsers(ctx context.Context) (int64, error)
-	CreateUser(ctx context.Context, email string, passwordHash string, firstName string, lastName string, isActive bool) (User, error)
+	CreateUser(ctx context.Context, email string, role UserRole, passwordHash string, firstName string, lastName string, isActive bool) (User, error)
 	DeactivateUser(ctx context.Context, id int32) error
 	DeleteUser(ctx context.Context, id int32) error
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByEmailWithPassword(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	ListUsers(ctx context.Context, limit int32, offset int32) ([]User, error)
-	UpdateUser(ctx context.Context, iD int32, firstName string, lastName string) (User, error)
+	UpdateUser(ctx context.Context, iD int32, role UserRole, firstName string, lastName string) (User, error)
 	UpdateUserPassword(ctx context.Context, iD int32, passwordHash string) (User, error)
 }
 

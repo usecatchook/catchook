@@ -35,9 +35,9 @@ func (c *Container) handleGetProfile(ctx *fiber.Ctx) error {
 }
 
 func (c *Container) handleUpdateProfile(ctx *fiber.Ctx) error {
-	userID, exists := middleware.GetUserID(ctx)
-	if !exists {
-		return response.Unauthorized(ctx, "User not authenticated")
+	targetUserID, err := ctx.ParamsInt("id")
+	if err != nil {
+		return response.BadRequest(ctx, "Invalid user ID", nil)
 	}
 
 	var req user.UpdateRequest
@@ -49,14 +49,21 @@ func (c *Container) handleUpdateProfile(ctx *fiber.Ctx) error {
 	}
 
 	c.Logger.Info(ctx.UserContext(), "Updating user profile",
-		logger.Int("user_id", userID),
+		logger.Int("target_user_id", targetUserID),
 	)
 
-	updatedUser, err := c.UserService.Update(ctx.UserContext(), userID, req)
+	currentUser := middleware.GetUser(ctx)
+	if currentUser == nil {
+		return response.Unauthorized(ctx, "User not authenticated")
+	}
+
+	updatedUser, err := c.UserService.Update(ctx.UserContext(), targetUserID, req, currentUser)
 	if err != nil {
 		switch err {
 		case user.ErrUserNotFound:
 			return response.NotFound(ctx, "User not found")
+		case user.ErrInsufficientPermissions:
+			return response.Forbidden(ctx, "Insufficient permissions to update")
 		default:
 			c.Logger.Error(ctx.UserContext(), "Failed to update user profile", logger.Error(err))
 			return response.InternalError(ctx, "Failed to update profile")

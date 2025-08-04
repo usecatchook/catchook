@@ -58,7 +58,7 @@ func (s *authService) Login(ctx context.Context, req auth.LoginRequest) (*auth.A
 		return nil, auth.ErrInvalidCredentials
 	}
 
-	accessToken, err := s.jwtManager.GenerateAccessToken(foundUser.ID)
+	accessToken, err := s.jwtManager.GenerateAccessToken(foundUser.ID, string(foundUser.Role))
 	if err != nil {
 		s.logger.Error(ctx, "Failed to generate access token",
 			logger.Int("user_id", foundUser.ID),
@@ -90,79 +90,51 @@ func (s *authService) Login(ctx context.Context, req auth.LoginRequest) (*auth.A
 	}, nil
 }
 
-func (s *authService) Register(ctx context.Context, req auth.RegisterRequest) (*auth.AuthResponse, error) {
-	s.logger.Info(ctx, "User registration attempt", logger.String("email", req.Email))
-
-	createReq := user.CreateRequest{
-		Email:     req.Email,
-		Password:  req.Password,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-	}
-
-	newUser, err := s.userService.Create(ctx, createReq)
-	if err != nil {
-		s.logger.Error(ctx, "Registration failed",
-			logger.String("email", req.Email),
-			logger.Error(err),
-		)
-		return nil, err
-	}
-
-	accessToken, err := s.jwtManager.GenerateAccessToken(newUser.ID)
-	if err != nil {
-		s.logger.Error(ctx, "Failed to generate access token for new user",
-			logger.Int("user_id", newUser.ID),
-			logger.Error(err),
-		)
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
-	}
-
-	refreshToken, err := s.jwtManager.GenerateRefreshToken(newUser.ID)
-	if err != nil {
-		s.logger.Error(ctx, "Failed to generate refresh token for new user",
-			logger.Int("user_id", newUser.ID),
-			logger.Error(err),
-		)
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
-	}
-
-	s.logger.Info(ctx, "User registered successfully",
-		logger.Int("user_id", newUser.ID),
-		logger.String("email", newUser.Email),
-	)
-
-	return &auth.AuthResponse{
-		User: newUser.ToResponse(),
-		Tokens: &auth.TokenPair{
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-		},
-	}, nil
-}
-
 func (s *authService) RefreshToken(ctx context.Context, req auth.RefreshTokenRequest) (*auth.TokenPair, error) {
 	s.logger.Debug(ctx, "Token refresh attempt")
 
-	newAccessToken, err := s.jwtManager.RefreshAccessToken(ctx, req.RefreshToken)
-	if err != nil {
-		s.logger.Warn(ctx, "Token refresh failed", logger.Error(err))
-		return nil, auth.ErrInvalidToken
-	}
-
-	claims, err := s.jwtManager.ValidateToken(req.RefreshToken)
+	// Parse and validate refresh token
+	claims, err := s.jwtManager.ParseRefreshToken(req.RefreshToken)
 	if err != nil {
 		s.logger.Warn(ctx, "Invalid refresh token", logger.Error(err))
 		return nil, auth.ErrInvalidToken
 	}
 
+	// Fetch user from database to verify account status and get updated role
+	foundUser, err := s.userRepo.GetByID(ctx, claims.UserID)
+	if err != nil {
+		s.logger.Warn(ctx, "User not found during token refresh",
+			logger.Int("user_id", claims.UserID),
+			logger.Error(err))
+		return nil, auth.ErrInvalidToken
+	}
+
+	// Check if user is still active (same verification as login)
+	if !foundUser.IsActive {
+		s.logger.Warn(ctx, "Token refresh failed - user inactive",
+			logger.Int("user_id", foundUser.ID),
+		)
+		return nil, user.ErrUserInactive
+	}
+
+	// Generate new access token with updated user role
+	newAccessToken, err := s.jwtManager.GenerateAccessToken(foundUser.ID, string(foundUser.Role))
+	if err != nil {
+		s.logger.Error(ctx, "Failed to generate new access token during refresh",
+			logger.Int("user_id", foundUser.ID),
+			logger.Error(err),
+		)
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
 	tokenPair := &auth.TokenPair{
 		AccessToken:  newAccessToken,
 		RefreshToken: req.RefreshToken,
-		TokenType:    "Bearer",
 	}
 
-	s.logger.Info(ctx, "Token refreshed successfully", logger.Int("user_id", claims.UserID))
+	s.logger.Info(ctx, "Token refreshed successfully",
+		logger.Int("user_id", foundUser.ID),
+		logger.String("role", string(foundUser.Role)))
 
 	return tokenPair, nil
 }

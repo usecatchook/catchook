@@ -38,18 +38,20 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     email, 
+    role,
     password_hash, 
     first_name, 
     last_name,
     is_active
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
+    $1, $2, $3, $4, $5, $6
+) RETURNING id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at
 `
 
-func (q *Queries) CreateUser(ctx context.Context, email string, passwordHash string, firstName string, lastName string, isActive bool) (User, error) {
+func (q *Queries) CreateUser(ctx context.Context, email string, role UserRole, passwordHash string, firstName string, lastName string, isActive bool) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		email,
+		role,
 		passwordHash,
 		firstName,
 		lastName,
@@ -59,6 +61,7 @@ func (q *Queries) CreateUser(ctx context.Context, email string, passwordHash str
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
@@ -93,7 +96,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
+SELECT id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
 WHERE email = $1 AND is_active = true
 `
 
@@ -103,6 +106,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
@@ -114,7 +118,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByEmailWithPassword = `-- name: GetUserByEmailWithPassword :one
-SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
+SELECT id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
 WHERE email = $1
 `
 
@@ -124,6 +128,7 @@ func (q *Queries) GetUserByEmailWithPassword(ctx context.Context, email string) 
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
@@ -135,7 +140,7 @@ func (q *Queries) GetUserByEmailWithPassword(ctx context.Context, email string) 
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
+SELECT id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
 WHERE id = $1 AND is_active = true
 `
 
@@ -145,6 +150,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
@@ -156,7 +162,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
+SELECT id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at FROM users 
 WHERE is_active = true
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -174,6 +180,7 @@ func (q *Queries) ListUsers(ctx context.Context, limit int32, offset int32) ([]U
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
+			&i.Role,
 			&i.PasswordHash,
 			&i.FirstName,
 			&i.LastName,
@@ -194,19 +201,26 @@ func (q *Queries) ListUsers(ctx context.Context, limit int32, offset int32) ([]U
 const updateUser = `-- name: UpdateUser :one
 UPDATE users 
 SET 
-    first_name = $2,
-    last_name = $3,
+    role = $2,
+    first_name = $3,
+    last_name = $4,
     updated_at = NOW()
 WHERE id = $1 AND is_active = true
-RETURNING id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
+RETURNING id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at
 `
 
-func (q *Queries) UpdateUser(ctx context.Context, iD int32, firstName string, lastName string) (User, error) {
-	row := q.db.QueryRow(ctx, updateUser, iD, firstName, lastName)
+func (q *Queries) UpdateUser(ctx context.Context, iD int32, role UserRole, firstName string, lastName string) (User, error) {
+	row := q.db.QueryRow(ctx, updateUser,
+		iD,
+		role,
+		firstName,
+		lastName,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,
@@ -223,7 +237,7 @@ SET
     password_hash = $2,
     updated_at = NOW()
 WHERE id = $1 AND is_active = true
-RETURNING id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
+RETURNING id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at
 `
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, iD int32, passwordHash string) (User, error) {
@@ -232,6 +246,7 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, iD int32, passwordHash
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
+		&i.Role,
 		&i.PasswordHash,
 		&i.FirstName,
 		&i.LastName,

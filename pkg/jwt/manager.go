@@ -12,14 +12,16 @@ import (
 )
 
 type Manager interface {
-	GenerateAccessToken(userID int) (string, error)
+	GenerateAccessToken(userID int, role string) (string, error)
 	GenerateRefreshToken(userID int) (string, error)
 	ValidateToken(tokenString string) (*Claims, error)
+	ParseRefreshToken(refreshToken string) (*Claims, error)
 	RefreshAccessToken(ctx context.Context, refreshToken string) (string, error)
 }
 
 type Claims struct {
 	UserID    int    `json:"user_id"`
+	Role      string `json:"role"`
 	TokenType string `json:"token_type"` // "access" ou "refresh"
 	jwt.RegisteredClaims
 }
@@ -34,10 +36,11 @@ func NewManager(config config.JWTConfig) Manager {
 	}
 }
 
-func (j *jwtManager) GenerateAccessToken(userID int) (string, error) {
+func (j *jwtManager) GenerateAccessToken(userID int, role string) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		UserID:    userID,
+		Role:      role,
 		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.config.Issuer,
@@ -48,11 +51,17 @@ func (j *jwtManager) GenerateAccessToken(userID int) (string, error) {
 		},
 	}
 
+	// Debug log pour voir les claims
+	fmt.Printf("Generating token with claims: %+v\n", claims)
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(j.config.SecretKey))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign access token: %w", err)
 	}
+
+	// Debug log pour voir le token généré
+	fmt.Printf("Generated token: %s\n", tokenString)
 
 	return tokenString, nil
 }
@@ -100,17 +109,26 @@ func (j *jwtManager) ValidateToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-func (j *jwtManager) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
+func (j *jwtManager) ParseRefreshToken(refreshToken string) (*Claims, error) {
 	claims, err := j.ValidateToken(refreshToken)
 	if err != nil {
-		return "", fmt.Errorf("invalid refresh token: %w", err)
+		return nil, fmt.Errorf("invalid refresh token: %w", err)
 	}
 
 	if claims.TokenType != "refresh" {
-		return "", fmt.Errorf("token is not a refresh token")
+		return nil, fmt.Errorf("token is not a refresh token")
 	}
 
-	accessToken, err := j.GenerateAccessToken(claims.UserID)
+	return claims, nil
+}
+
+func (j *jwtManager) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
+	claims, err := j.ParseRefreshToken(refreshToken)
+	if err != nil {
+		return "", err
+	}
+
+	accessToken, err := j.GenerateAccessToken(claims.UserID, claims.Role)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate new access token: %w", err)
 	}
@@ -124,26 +142,4 @@ type TokenPair struct {
 	TokenType    string    `json:"token_type"`
 	ExpiresIn    int64     `json:"expires_in"`
 	ExpiresAt    time.Time `json:"expires_at"`
-}
-
-func (j *jwtManager) GenerateTokenPair(userID int) (*TokenPair, error) {
-	accessToken, err := j.GenerateAccessToken(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
-	}
-
-	refreshToken, err := j.GenerateRefreshToken(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
-	}
-
-	expiresAt := time.Now().Add(j.config.AccessTokenDuration)
-
-	return &TokenPair{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int64(j.config.AccessTokenDuration.Seconds()),
-		ExpiresAt:    expiresAt,
-	}, nil
 }

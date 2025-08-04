@@ -33,6 +33,7 @@ func (r *userRepository) Create(ctx context.Context, user *user.User) error {
 
 	result, err := r.queries.CreateUser(ctx,
 		user.Email,
+		user.Role,
 		user.Password,
 		user.FirstName,
 		user.LastName,
@@ -87,6 +88,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*user.User, error
 	return &user.User{
 		ID:        int(result.ID),
 		Email:     result.Email,
+		Role:      result.Role,
 		Password:  result.PasswordHash,
 		FirstName: result.FirstName,
 		LastName:  result.LastName,
@@ -124,6 +126,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.Us
 	return &user.User{
 		ID:        int(result.ID),
 		Email:     result.Email,
+		Role:      result.Role,
 		Password:  result.PasswordHash,
 		FirstName: result.FirstName,
 		LastName:  result.LastName,
@@ -141,6 +144,7 @@ func (r *userRepository) Update(ctx context.Context, user *user.User) error {
 
 	result, err := r.queries.UpdateUser(ctx,
 		int32(user.ID),
+		user.Role,
 		user.FirstName,
 		user.LastName,
 	)

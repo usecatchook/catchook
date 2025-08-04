@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/theotruvelot/catchook/internal/domain/user"
+	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/cache"
 	"github.com/theotruvelot/catchook/pkg/crypto"
 	"github.com/theotruvelot/catchook/pkg/logger"
+	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
 type userService struct {
@@ -26,15 +28,6 @@ func NewUserService(userRepo user.Repository, cache cache.Cache, logger logger.L
 
 func (s *userService) Create(ctx context.Context, req user.CreateRequest) (*user.User, error) {
 	s.logger.Info(ctx, "Creating new user", logger.String("email", req.Email))
-
-	// Check if this is the first user
-	userCount, err := s.userRepo.CountUsers(ctx)
-	if err != nil {
-		s.logger.Error(ctx, "Failed to count users", logger.Error(err))
-		return nil, fmt.Errorf("failed to count users: %w", err)
-	}
-
-	isFirstUser := userCount == 0
 
 	exists, err := s.userRepo.EmailExists(ctx, req.Email)
 	if err != nil {
@@ -66,21 +59,6 @@ func (s *userService) Create(ctx context.Context, req user.CreateRequest) (*user
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	cacheKey := cache.BuildKey(cache.KeyUserProfile, newUser.ID)
-	s.cache.SetJSON(ctx, cacheKey, newUser, cache.TTLUserProfile)
-
-	if isFirstUser {
-		s.logger.Info(ctx, "First user created - this user has admin privileges",
-			logger.Int("user_id", newUser.ID),
-			logger.String("email", newUser.Email),
-		)
-	} else {
-		s.logger.Info(ctx, "User created successfully",
-			logger.Int("user_id", newUser.ID),
-			logger.String("email", newUser.Email),
-		)
-	}
-
 	newUser.Sanitize()
 	return newUser, nil
 }
@@ -110,17 +88,41 @@ func (s *userService) GetByID(ctx context.Context, id int) (*user.User, error) {
 	return foundUser, nil
 }
 
-func (s *userService) Update(ctx context.Context, id int, req user.UpdateRequest) (*user.User, error) {
+func (s *userService) Update(ctx context.Context, id int, req user.UpdateRequest, currentUser *middleware.User) (*user.User, error) {
 	s.logger.Info(ctx, "Updating user", logger.Int("user_id", id))
 
+	// Vérifie que l'utilisateur existe
 	existingUser, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		s.logger.Warn(ctx, "User not found for update", logger.Int("user_id", id))
 		return nil, user.ErrUserNotFound
 	}
 
+	// Vérifie les permissions
+	if currentUser == nil {
+		return nil, user.ErrInsufficientPermissions
+	}
+
+	// Seuls les admins peuvent modifier d'autres utilisateurs
+	if currentUser.ID != id && currentUser.Role != "admin" {
+		s.logger.Warn(ctx, "Non-admin trying to update another user",
+			logger.Int("current_user_id", currentUser.ID),
+			logger.Int("target_user_id", id))
+		return nil, user.ErrInsufficientPermissions
+	}
+
+	// Met à jour les informations de base
 	existingUser.FirstName = req.FirstName
 	existingUser.LastName = req.LastName
+
+	// Seuls les admins peuvent changer les rôles
+	if req.Role != "" {
+		if currentUser.Role != "admin" {
+			s.logger.Warn(ctx, "Non-admin trying to update role", logger.Int("user_id", id))
+			return nil, user.ErrInsufficientPermissions
+		}
+		existingUser.Role = generated.UserRole(req.Role)
+	}
 
 	if err := s.userRepo.Update(ctx, existingUser); err != nil {
 		s.logger.Error(ctx, "Failed to update user", logger.Int("user_id", id), logger.Error(err))

@@ -18,6 +18,7 @@ import (
 	"github.com/theotruvelot/catchook/internal/config"
 	"github.com/theotruvelot/catchook/internal/domain/auth"
 	"github.com/theotruvelot/catchook/internal/domain/health"
+	"github.com/theotruvelot/catchook/internal/domain/setup"
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/internal/repository/postgres"
@@ -41,6 +42,7 @@ type Container struct {
 	UserService   user.Service
 	AuthService   auth.Service
 	HealthService health.Service
+	SetupService  setup.Service
 }
 
 func NewContainer(cfg *config.Config, logger logger.Logger) (*Container, error) {
@@ -110,6 +112,7 @@ func (c *Container) initServices() {
 	c.UserService = service.NewUserService(userRepo, c.Cache, c.Logger)
 	c.AuthService = service.NewAuthService(userRepo, c.UserService, c.JWT, c.Logger)
 	c.HealthService = service.NewHealthService(c.DB, c.Redis, userRepo, c.Logger, c.Config.Server.Version)
+	c.SetupService = service.NewSetupService(userRepo, c.Logger)
 
 	c.Logger.Info(context.Background(), "Services initialized")
 }
@@ -198,6 +201,8 @@ func (c *Container) SetupRoutes(app *fiber.App) {
 
 	c.setupUserRoutes(api)
 
+	c.setupSetupRoutes(api)
+
 	// 404 handler
 	app.Use(func(c *fiber.Ctx) error {
 		return response.NotFound(c, "Route not found")
@@ -207,7 +212,6 @@ func (c *Container) SetupRoutes(app *fiber.App) {
 func (c *Container) setupAuthRoutes(api fiber.Router) {
 	auth := api.Group("/auth")
 
-	auth.Post("/register", c.handleRegister)
 	auth.Post("/login", c.handleLogin)
 	auth.Post("/refresh", c.handleRefreshToken)
 }
@@ -217,9 +221,15 @@ func (c *Container) setupUserRoutes(api fiber.Router) {
 
 	users.Use(middleware.JWTAuth(c.JWT))
 
-	users.Get("/profile", c.handleGetProfile)
-	users.Put("/profile", c.handleUpdateProfile)
+	users.Get("/profile/:id", c.handleGetProfile)
+	users.Put("/profile/:id", c.handleUpdateProfile)
 	users.Post("/change-password", c.handleChangePassword)
+}
+
+func (c *Container) setupSetupRoutes(api fiber.Router) {
+	setup := api.Group("/setup")
+
+	setup.Post("/", c.handleSetup)
 }
 
 func (c *Container) errorHandler(ctx *fiber.Ctx, err error) error {

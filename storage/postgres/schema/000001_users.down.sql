@@ -14,5 +14,8 @@ DROP INDEX IF EXISTS idx_users_email;
 -- Drop table
 DROP TABLE IF EXISTS users;
 
+-- Drop enum type
+DROP TYPE IF EXISTS user_role;
+
 -- Drop extension if no other tables need it
 DROP EXTENSION IF EXISTS "uuid-ossp";

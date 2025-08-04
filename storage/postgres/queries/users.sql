@@ -1,12 +1,13 @@
 -- name: CreateUser :one
 INSERT INTO users (
     email, 
+    role,
     password_hash, 
     first_name, 
     last_name,
     is_active
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 ) RETURNING *;
 
 -- name: GetUserByID :one
@@ -24,8 +25,9 @@ WHERE email = $1;
 -- name: UpdateUser :one
 UPDATE users 
 SET 
-    first_name = $2,
-    last_name = $3,
+    role = $2,
+    first_name = $3,
+    last_name = $4,
     updated_at = NOW()
 WHERE id = $1 AND is_active = true
 RETURNING *;

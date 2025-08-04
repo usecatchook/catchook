@@ -35,6 +35,7 @@ func JWTAuth(jwtManager jwt.Manager) fiber.Handler {
 		}
 
 		c.Locals("userID", claims.UserID)
+		c.Locals("role", claims.Role)
 		c.Locals("token", token)
 
 		return c.Next()
