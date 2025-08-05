@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import {
   IconCamera,
   IconChartBar,
@@ -18,6 +17,7 @@ import {
   IconSettings,
   IconUsers,
 } from "@tabler/icons-react"
+import * as React from "react"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -42,7 +42,7 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/",
       icon: IconDashboard,
     },
     {
@@ -61,8 +61,8 @@ const data = {
       icon: IconFolder,
     },
     {
-      title: "Team",
-      url: "#",
+      title: "Users",
+      url: "/users",
       icon: IconUsers,
     },
   ],

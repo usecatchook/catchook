@@ -1,12 +1,13 @@
-  import QueryProvider from "@/components/queryProvider";
+import QueryProvider from "@/components/queryProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
+import { CommandMenuProvider } from "@/contexts/command-menu-context";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-  const geistSans = Geist({
-    variable: "--font-geist-sans",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
@@ -30,18 +31,20 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-      <QueryProvider>
-        <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </AuthProvider>
-      </QueryProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <CommandMenuProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                {children}
+              </ThemeProvider>
+            </CommandMenuProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );
