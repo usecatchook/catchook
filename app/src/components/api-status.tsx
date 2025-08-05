@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card"
-import { useHealth } from "@/hooks/useHealth"
+import { useHealth } from "@/hooks/use-health"
 import Link from "next/link"
 
 export function ApiStatus() {

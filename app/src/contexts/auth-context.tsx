@@ -1,6 +1,6 @@
 "use client"
 
-import { useValidationErrors, ValidationErrors } from '@/hooks/useValidationErrors';
+import { useValidationErrors, ValidationErrors } from '@/hooks/use-validation-errors';
 import { authAPI } from '@/lib/api';
 import type { LoginCredentials } from '@/types/auth';
 import { User } from "@/types/user";

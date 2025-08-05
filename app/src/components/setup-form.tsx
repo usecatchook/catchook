@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useValidationErrors } from "@/hooks/useValidationErrors"
+import { useValidationErrors } from "@/hooks/use-validation-errors"
 import { setupAPI } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { SetupAdminUserRequest } from "@/types/setup"

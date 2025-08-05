@@ -3,7 +3,7 @@ import { ApiStatus } from "@/components/api-status"
 import { LoginForm } from "@/components/login-form"
 import { DotPattern } from "@/components/magicui/dot-pattern"
 import { ThemeToggleDropdown } from "@/components/theme-toggle-dropdown"
-import { useHealth } from "@/hooks/useHealth"
+import { useHealth } from "@/hooks/use-health"
 import Image from "next/image"
 import Link from "next/link"
 
