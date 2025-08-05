@@ -191,11 +191,10 @@ func (c *Container) setupMiddlewares(app *fiber.App) {
 }
 
 func (c *Container) SetupRoutes(app *fiber.App) {
-	// Health check
-	app.Get("/health", c.handleHealthCheck)
-
 	// API routes
 	api := app.Group("/api/v1")
+
+	api.Get("/health", c.handleHealthCheck)
 
 	c.setupAuthRoutes(api)
 
@@ -221,6 +220,7 @@ func (c *Container) setupUserRoutes(api fiber.Router) {
 
 	users.Use(middleware.JWTAuth(c.JWT))
 
+	users.Get("/me", c.handleGetMe)
 	users.Get("/profile/:id", c.handleGetProfile)
 	users.Put("/profile/:id", c.handleUpdateProfile)
 	users.Post("/change-password", c.handleChangePassword)

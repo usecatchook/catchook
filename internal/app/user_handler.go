@@ -105,3 +105,17 @@ func (c *Container) handleChangePassword(ctx *fiber.Ctx) error {
 
 	return response.Success(ctx, nil, "Password changed successfully")
 }
+
+func (c *Container) handleGetMe(ctx *fiber.Ctx) error {
+	userID, exists := middleware.GetUserID(ctx)
+	if !exists {
+		return response.Unauthorized(ctx, "User not authenticated")
+	}
+
+	foundUser, err := c.UserService.GetByID(ctx.UserContext(), userID)
+	if err != nil {
+		return response.InternalError(ctx, "Failed to get user")
+	}
+
+	return response.Success(ctx, foundUser.ToResponse(), "User retrieved successfully")
+}
