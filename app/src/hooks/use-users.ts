@@ -16,7 +16,7 @@ interface UseUsersReturn {
 export function useUsers(): UseUsersReturn {
   const [users, setUsers] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFiltersState] = useState<UserFilters>({
     page: 1,
@@ -24,13 +24,14 @@ export function useUsers(): UseUsersReturn {
     order_by: 'created_at',
     order: 'desc',
   });
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (currentFilters: UserFilters) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const response: PaginatedResponse<User> = await usersAPI.getUsers(filters);
+      const response: PaginatedResponse<User> = await usersAPI.getUsers(currentFilters);
       setUsers(response.data);
       setTotalCount(response.pagination.total);
     } catch (err) {
@@ -38,24 +39,35 @@ export function useUsers(): UseUsersReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [filters]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  const setFilters = useCallback((newFilters: Partial<UserFilters>) => {
-    setFiltersState(prev => ({
-      ...prev,
-      ...newFilters,
-      // Reset to first page when filters change
-      page: newFilters.page || 1,
-    }));
   }, []);
 
+  // Initial fetch
+  useEffect(() => {
+    if (!hasInitialized) {
+      fetchUsers(filters);
+      setHasInitialized(true);
+    }
+  }, [hasInitialized, fetchUsers, filters]);
+
+  const setFilters = useCallback((newFilters: Partial<UserFilters>) => {
+    setFiltersState(prev => {
+      const updatedFilters = {
+        ...prev,
+        ...newFilters,
+        // Reset to first page when filters change
+        page: newFilters.page || 1,
+      };
+      // Only fetch if we've already initialized
+      if (hasInitialized) {
+        fetchUsers(updatedFilters);
+      }
+      return updatedFilters;
+    });
+  }, [fetchUsers, hasInitialized]);
+
   const refetch = useCallback(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsers(filters);
+  }, [fetchUsers, filters]);
 
   return {
     users,

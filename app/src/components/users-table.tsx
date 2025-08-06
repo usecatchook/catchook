@@ -69,23 +69,28 @@ export function UsersTable() {
   const { users, totalCount, isLoading, error, filters, setFilters, refetch } = useUsers();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Update filters when search or other filters change
-  useEffect(() => {
-    setFilters({
-      search: debouncedSearch || undefined,
-      role: roleFilter || undefined,
-      is_active: statusFilter === 'all' ? undefined : statusFilter === 'active',
-      order_by: sortBy,
-      order: sortOrder,
-    });
-  }, [debouncedSearch, roleFilter, statusFilter, sortBy, sortOrder, setFilters]);
-
   // Track initial load vs filter changes
   useEffect(() => {
     if (!isLoading && isInitialLoad) {
       setIsInitialLoad(false);
     }
   }, [isLoading, isInitialLoad]);
+
+  // Update filters when search or other filters change (but not on initial mount)
+  useEffect(() => {
+    // Skip the first render to avoid double API calls
+    if (isInitialLoad) return;
+    
+    const newFilters = {
+      search: debouncedSearch || undefined,
+      role: roleFilter || undefined,
+      is_active: statusFilter === 'all' ? undefined : statusFilter === 'active',
+      order_by: sortBy,
+      order: sortOrder,
+    };
+    
+    setFilters(newFilters);
+  }, [debouncedSearch, roleFilter, statusFilter, sortBy, sortOrder, isInitialLoad]);
 
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
