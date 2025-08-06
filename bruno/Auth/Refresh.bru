@@ -1,23 +1,17 @@
 meta {
-  name: Refresh Token
+  name: Refresh Session
   type: http
   seq: 4
 }
 
 post {
   url: {{apiUrl}}/auth/refresh
-  body: json
+  body: none
   auth: none
 }
 
 headers {
-  Content-Type: application/json
-}
-
-body:json {
-  {
-    "refresh_token": "{{refreshToken}}"
-  }
+  Authorization: {{session_id}}
 }
 
 tests {
@@ -27,20 +21,18 @@ tests {
   
   test("Should return success", function() {
     expect(res.getBody()).to.have.property('success', true);
-    expect(res.getBody()).to.have.property('message', 'Token refreshed successfully');
+    expect(res.getBody()).to.have.property('message', 'Session refreshed successfully');
     expect(res.getBody()).to.have.property('data');
   });
   
-  test("Should return new access token", function() {
+  test("Should return session data", function() {
     const data = res.getBody().data;
-    expect(data).to.have.property('access_token');
-    expect(data).to.have.property('refresh_token');
-    expect(data).to.have.property('token_type', 'Bearer');
+    expect(data).to.have.property('session_id');
   });
   
-  // Mettre à jour l'access token
+  // Mettre à jour le session_id
   if (res.getStatus() === 200) {
     const data = res.getBody().data;
-    bru.setEnvVar("accessToken", data.access_token);
+    bru.setEnvVar("session_id", data.session_id);
   }
 }

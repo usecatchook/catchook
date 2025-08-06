@@ -9,16 +9,11 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
-type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
-}
-
 type AuthResponse struct {
-	User   *user.UserResponse `json:"user"`
-	Tokens *TokenPair         `json:"tokens"`
+	User    *user.UserResponse `json:"user"`
+	Session *SessionResponse   `json:"session"`
 }
 
-type TokenPair struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+type SessionResponse struct {
+	SessionID string `json:"session_id"`
 }

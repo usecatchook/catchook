@@ -24,9 +24,9 @@ import (
 	"github.com/theotruvelot/catchook/internal/repository/postgres"
 	"github.com/theotruvelot/catchook/internal/service"
 	"github.com/theotruvelot/catchook/pkg/cache"
-	"github.com/theotruvelot/catchook/pkg/jwt"
 	"github.com/theotruvelot/catchook/pkg/logger"
 	"github.com/theotruvelot/catchook/pkg/response"
+	"github.com/theotruvelot/catchook/pkg/session"
 	"github.com/theotruvelot/catchook/pkg/validator"
 )
 
@@ -36,7 +36,7 @@ type Container struct {
 	DB        *pgxpool.Pool
 	Redis     *redis.Client
 	Cache     cache.Cache
-	JWT       jwt.Manager
+	Session   session.Manager
 	Validator *validator.Validator
 
 	UserService   user.Service
@@ -99,7 +99,7 @@ func (c *Container) initDatabase() error {
 
 func (c *Container) initUtilities() {
 	c.Cache = cache.NewRedisCache(c.Redis)
-	c.JWT = jwt.NewManager(c.Config.JWT)
+	c.Session = session.NewManager(c.Redis, c.Config.Session.Duration)
 	c.Validator = validator.New()
 	c.Logger.Info(context.Background(), "Utilities initialized")
 }
@@ -110,7 +110,7 @@ func (c *Container) initServices() {
 
 	// Services
 	c.UserService = service.NewUserService(userRepo, c.Cache, c.Logger)
-	c.AuthService = service.NewAuthService(userRepo, c.UserService, c.JWT, c.Logger)
+	c.AuthService = service.NewAuthService(userRepo, c.Session, c.Logger)
 	c.HealthService = service.NewHealthService(c.DB, c.Redis, userRepo, c.Logger, c.Config.Server.Version)
 	c.SetupService = service.NewSetupService(userRepo, c.Logger)
 
@@ -212,18 +212,23 @@ func (c *Container) setupAuthRoutes(api fiber.Router) {
 	auth := api.Group("/auth")
 
 	auth.Post("/login", c.handleLogin)
-	auth.Post("/refresh", c.handleRefreshToken)
+	auth.Post("/refresh", c.handleRefreshSession)
+	auth.Post("/logout", c.handleLogout)
 }
 
 func (c *Container) setupUserRoutes(api fiber.Router) {
 	users := api.Group("/users")
 
-	users.Use(middleware.JWTAuth(c.JWT))
+	users.Use(middleware.SessionAuth(c.Session))
 
 	users.Get("/me", c.handleGetMe)
 	users.Get("/profile/:id", c.handleGetProfile)
 	users.Put("/profile/:id", c.handleUpdateProfile)
-	users.Post("/change-password", c.handleChangePassword)
+
+	// Admin routes
+	admin := users.Group("/admin")
+	admin.Use(middleware.RequireRoles("admin"))
+	admin.Get("/users", c.handleListUsers)
 }
 
 func (c *Container) setupSetupRoutes(api fiber.Router) {

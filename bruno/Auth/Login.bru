@@ -35,18 +35,14 @@ tests {
   test("Should return user and tokens", function() {
     const data = res.getBody().data;
     expect(data).to.have.property('user');
-    expect(data).to.have.property('tokens');
-    
-    expect(data.user).to.have.property('email', 'john.doe@example.com');
-    expect(data.tokens).to.have.property('access_token');
-    expect(data.tokens).to.have.property('refresh_token');
+    expect(data).to.have.property('session');
+
+    expect(data.session).to.have.property('session_id');
   });
   
   // Mettre à jour les tokens
   if (res.getStatus() === 200) {
     const data = res.getBody().data;
-    bru.setEnvVar("accessToken", data.tokens.access_token);
-    bru.setEnvVar("refreshToken", data.tokens.refresh_token);
-    bru.setEnvVar("userId", data.user.id.toString());
+    bru.setEnvVar("session_id", data.session.session_id);
   }
 }

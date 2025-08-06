@@ -13,7 +13,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
-	JWT      JWTConfig
+	Session  SessionConfig
 	Logger   LoggerConfig
 }
 
@@ -52,12 +52,10 @@ type RedisConfig struct {
 	WriteTimeout time.Duration `env:"REDIS_WRITE_TIMEOUT" envDefault:"3s"`
 }
 
-type JWTConfig struct {
-	SecretKey            string        `env:"JWT_SECRET_KEY" validate:"required,min=32"`
-	AccessTokenDuration  time.Duration `env:"JWT_ACCESS_TOKEN_DURATION" envDefault:"24h"`
-	RefreshTokenDuration time.Duration `env:"JWT_REFRESH_TOKEN_DURATION" envDefault:"168h"` // 7 days
-	Issuer               string        `env:"JWT_ISSUER" envDefault:"webhook-api"`
-	CachePrefix          string        `env:"JWT_CACHE_PREFIX" envDefault:"jwt:"`
+type SessionConfig struct {
+	Duration    time.Duration `env:"SESSION_DURATION" envDefault:"24h"`
+	RefreshTime time.Duration `env:"SESSION_REFRESH_TIME" envDefault:"1h"`
+	Prefix      string        `env:"SESSION_PREFIX" envDefault:"session:"`
 }
 
 type LoggerConfig struct {

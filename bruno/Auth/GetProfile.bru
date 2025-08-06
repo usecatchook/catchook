@@ -5,13 +5,13 @@ meta {
 }
 
 get {
-  url: {{apiUrl}}/users/profile
+  url: {{apiUrl}}/users/me
   body: none
-  auth: bearer
+  auth: none
 }
 
-auth:bearer {
-  token: {{accessToken}}
+headers {
+  Authorization: {{session_id}}
 }
 
 tests {
@@ -21,7 +21,7 @@ tests {
   
   test("Should return success", function() {
     expect(res.getBody()).to.have.property('success', true);
-    expect(res.getBody()).to.have.property('message', 'Profile retrieved successfully');
+    expect(res.getBody()).to.have.property('message', 'User retrieved successfully');
     expect(res.getBody()).to.have.property('data');
   });
   

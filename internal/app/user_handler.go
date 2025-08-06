@@ -119,3 +119,13 @@ func (c *Container) handleGetMe(ctx *fiber.Ctx) error {
 
 	return response.Success(ctx, foundUser.ToResponse(), "User retrieved successfully")
 }
+
+func (c *Container) handleListUsers(ctx *fiber.Ctx) error {
+	users, err := c.UserService.List(ctx.UserContext())
+	if err != nil {
+		c.Logger.Error(ctx.UserContext(), "Failed to list users", logger.Error(err))
+		return response.InternalError(ctx, "Failed to list users")
+	}
+
+	return response.Success(ctx, users, "Users retrieved successfully")
+}

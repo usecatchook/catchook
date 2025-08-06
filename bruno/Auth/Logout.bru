@@ -7,11 +7,11 @@ meta {
 post {
   url: {{apiUrl}}/auth/logout
   body: none
-  auth: bearer
+  auth: none
 }
 
-auth:bearer {
-  token: {{accessToken}}
+headers {
+  Authorization: {{session_id}}
 }
 
 tests {
@@ -29,7 +29,5 @@ tests {
   });
   
   // Nettoyer les tokens après déconnexion
-  bru.setEnvVar("accessToken", "");
-  bru.setEnvVar("refreshToken", "");
-  bru.setEnvVar("userId", "");
+  bru.setEnvVar("session_id", "");
 }

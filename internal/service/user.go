@@ -191,3 +191,20 @@ func (s *userService) ChangePassword(ctx context.Context, id int, req user.Chang
 	s.logger.Info(ctx, "Password changed successfully", logger.Int("user_id", id))
 	return nil
 }
+
+func (s *userService) List(ctx context.Context) ([]*user.User, error) {
+	s.logger.Debug(ctx, "Listing all users")
+
+	users, err := s.userRepo.List(ctx)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to list users", logger.Error(err))
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+
+	for _, u := range users {
+		u.Sanitize()
+	}
+
+	s.logger.Debug(ctx, "Users listed successfully", logger.Int("count", len(users)))
+	return users, nil
+}

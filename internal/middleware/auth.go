@@ -1,69 +1,75 @@
 package middleware
 
 import (
-	"strings"
-
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/theotruvelot/catchook/pkg/jwt"
 	"github.com/theotruvelot/catchook/pkg/response"
+	"github.com/theotruvelot/catchook/pkg/session"
 )
 
-func JWTAuth(jwtManager jwt.Manager) fiber.Handler {
+const UserContextKey = "user"
+
+type User struct {
+	ID   int    `json:"id"`
+	Role string `json:"role"`
+}
+
+func SessionAuth(sessionManager session.Manager) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
+		sessionID := c.Get("Authorization")
+		if sessionID == "" {
 			return response.Unauthorized(c, "Missing authorization header")
 		}
 
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			return response.Unauthorized(c, "Invalid authorization format")
-		}
-
-		token := authHeader[7:]
-		if token == "" {
-			return response.Unauthorized(c, "Missing token")
-		}
-
-		claims, err := jwtManager.ValidateToken(token)
+		session, err := sessionManager.ValidateSession(c.Context(), sessionID)
 		if err != nil {
-			return response.Unauthorized(c, "Invalid token")
+			return response.Unauthorized(c, "Invalid or expired session")
 		}
 
-		if claims.TokenType != "access" {
-			return response.Unauthorized(c, "Invalid token type")
+		user := &User{
+			ID:   session.UserID,
+			Role: session.Role,
 		}
 
-		c.Locals("userID", claims.UserID)
-		c.Locals("role", claims.Role)
-		c.Locals("token", token)
-
+		c.Locals(UserContextKey, user)
 		return c.Next()
 	}
 }
 
-func GetUserID(c *fiber.Ctx) (int, bool) {
-	userID := c.Locals("userID")
-	if userID == nil {
-		return 0, false
-	}
+func RequireRoles(roles ...string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user := GetUser(c)
+		if user == nil {
+			return response.Unauthorized(c, "Authentication required")
+		}
 
-	if id, ok := userID.(int); ok {
-		return id, true
-	}
+		for _, role := range roles {
+			if user.Role == role {
+				return c.Next()
+			}
+		}
 
-	return 0, false
+		return response.Forbidden(c, "Insufficient permissions")
+	}
 }
 
-func GetToken(c *fiber.Ctx) (string, bool) {
-	token := c.Locals("token")
-	if token == nil {
-		return "", false
+func GetUser(c *fiber.Ctx) *User {
+	user := c.Locals(UserContextKey)
+	if user == nil {
+		return nil
 	}
 
-	if t, ok := token.(string); ok {
-		return t, true
+	if u, ok := user.(*User); ok {
+		return u
 	}
 
-	return "", false
+	return nil
+}
+
+func GetUserID(c *fiber.Ctx) (int, bool) {
+	user := GetUser(c)
+	if user == nil {
+		return 0, false
+	}
+	return user.ID, true
 }

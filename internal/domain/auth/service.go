@@ -4,5 +4,6 @@ import "context"
 
 type Service interface {
 	Login(ctx context.Context, req LoginRequest) (*AuthResponse, error)
-	RefreshToken(ctx context.Context, req RefreshTokenRequest) (*TokenPair, error)
+	RefreshSession(ctx context.Context, sessionID string) (*SessionResponse, error)
+	Logout(ctx context.Context, sessionID string) error
 }

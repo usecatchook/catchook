@@ -266,3 +266,31 @@ func (r *userRepository) CountUsers(ctx context.Context) (int64, error) {
 
 	return count, nil
 }
+
+func (r *userRepository) List(ctx context.Context) ([]*user.User, error) {
+	r.logger.Debug(ctx, "Listing all users from database")
+
+	results, err := r.queries.ListUsers(ctx, 1000, 0) // Limit to 1000 users, offset 0
+	if err != nil {
+		r.logger.Error(ctx, "Failed to list users from database", logger.Error(err))
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+
+	users := make([]*user.User, len(results))
+	for i, result := range results {
+		users[i] = &user.User{
+			ID:        int(result.ID),
+			Email:     result.Email,
+			Role:      result.Role,
+			Password:  result.PasswordHash,
+			FirstName: result.FirstName,
+			LastName:  result.LastName,
+			IsActive:  result.IsActive,
+			CreatedAt: result.CreatedAt.Time,
+			UpdatedAt: result.UpdatedAt.Time,
+		}
+	}
+
+	r.logger.Debug(ctx, "Users listed successfully from database", logger.Int("count", len(users)))
+	return users, nil
+}

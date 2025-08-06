@@ -5,17 +5,14 @@ meta {
 }
 
 put {
-  url: {{apiUrl}}/users/profile
+  url: {{apiUrl}}/users/profile/{{userId}}
   body: json
-  auth: bearer
-}
-
-auth:bearer {
-  token: {{accessToken}}
+  auth: none
 }
 
 headers {
   Content-Type: application/json
+  Authorization: {{session_id}}
 }
 
 body:json {

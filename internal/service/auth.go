@@ -7,134 +7,132 @@ import (
 	"github.com/theotruvelot/catchook/internal/domain/auth"
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/pkg/crypto"
-	"github.com/theotruvelot/catchook/pkg/jwt"
 	"github.com/theotruvelot/catchook/pkg/logger"
+	"github.com/theotruvelot/catchook/pkg/session"
 )
 
 type authService struct {
-	userRepo    user.Repository
-	userService user.Service
-	jwtManager  jwt.Manager
-	logger      logger.Logger
+	userRepo       user.Repository
+	sessionManager session.Manager
+	logger         logger.Logger
 }
 
 func NewAuthService(
 	userRepo user.Repository,
-	userService user.Service,
-	jwtManager jwt.Manager,
+	sessionManager session.Manager,
 	logger logger.Logger,
 ) auth.Service {
 	return &authService{
-		userRepo:    userRepo,
-		userService: userService,
-		jwtManager:  jwtManager,
-		logger:      logger,
+		userRepo:       userRepo,
+		sessionManager: sessionManager,
+		logger:         logger,
 	}
 }
 
 func (s *authService) Login(ctx context.Context, req auth.LoginRequest) (*auth.AuthResponse, error) {
 	s.logger.Info(ctx, "User login attempt", logger.String("email", req.Email))
 
-	foundUser, err := s.userRepo.GetByEmail(ctx, req.Email)
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		s.logger.Warn(ctx, "Login failed - user not found", logger.String("email", req.Email))
 		return nil, auth.ErrInvalidCredentials
 	}
 
-	if !foundUser.IsActive {
+	if !user.IsActive {
 		s.logger.Warn(ctx, "Login failed - user inactive",
 			logger.String("email", req.Email),
-			logger.Int("user_id", foundUser.ID),
+			logger.Int("user_id", user.ID),
 		)
-		return nil, user.ErrUserInactive
+		return nil, auth.ErrUserInactive
 	}
 
-	valid, err := crypto.Verify(req.Password, foundUser.Password)
+	valid, err := crypto.Verify(req.Password, user.Password)
 	if err != nil || !valid {
 		s.logger.Warn(ctx, "Login failed - invalid password",
 			logger.String("email", req.Email),
-			logger.Int("user_id", foundUser.ID),
+			logger.Int("user_id", user.ID),
 		)
 		return nil, auth.ErrInvalidCredentials
 	}
 
-	accessToken, err := s.jwtManager.GenerateAccessToken(foundUser.ID, string(foundUser.Role))
+	sessionID, err := s.sessionManager.CreateSession(ctx, user.ID, string(user.Role))
 	if err != nil {
-		s.logger.Error(ctx, "Failed to generate access token",
-			logger.Int("user_id", foundUser.ID),
+		s.logger.Error(ctx, "Failed to create session",
+			logger.Int("user_id", user.ID),
 			logger.Error(err),
 		)
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
-	}
-
-	refreshToken, err := s.jwtManager.GenerateRefreshToken(foundUser.ID)
-	if err != nil {
-		s.logger.Error(ctx, "Failed to generate refresh token",
-			logger.Int("user_id", foundUser.ID),
-			logger.Error(err),
-		)
-		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
 	s.logger.Info(ctx, "User logged in successfully",
-		logger.Int("user_id", foundUser.ID),
-		logger.String("email", foundUser.Email),
+		logger.Int("user_id", user.ID),
+		logger.String("email", user.Email),
 	)
 
 	return &auth.AuthResponse{
-		User: foundUser.ToResponse(),
-		Tokens: &auth.TokenPair{
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
+		User: user.ToResponse(),
+		Session: &auth.SessionResponse{
+			SessionID: sessionID,
 		},
 	}, nil
 }
 
-func (s *authService) RefreshToken(ctx context.Context, req auth.RefreshTokenRequest) (*auth.TokenPair, error) {
-	s.logger.Debug(ctx, "Token refresh attempt")
+func (s *authService) RefreshSession(ctx context.Context, sessionID string) (*auth.SessionResponse, error) {
+	s.logger.Debug(ctx, "Session refresh attempt")
 
-	// Parse and validate refresh token
-	claims, err := s.jwtManager.ParseRefreshToken(req.RefreshToken)
+	sess, err := s.sessionManager.ValidateSession(ctx, sessionID)
 	if err != nil {
-		s.logger.Warn(ctx, "Invalid refresh token", logger.Error(err))
+		s.logger.Warn(ctx, "Invalid session", logger.Error(err))
 		return nil, auth.ErrInvalidToken
 	}
 
-	// Fetch user from database to verify account status and get updated role
-	foundUser, err := s.userRepo.GetByID(ctx, claims.UserID)
+	user, err := s.userRepo.GetByID(ctx, sess.UserID)
 	if err != nil {
-		s.logger.Warn(ctx, "User not found during token refresh",
-			logger.Int("user_id", claims.UserID),
+		s.logger.Warn(ctx, "User not found during session refresh",
+			logger.Int("user_id", sess.UserID),
 			logger.Error(err))
 		return nil, auth.ErrInvalidToken
 	}
 
-	// Check if user is still active (same verification as login)
-	if !foundUser.IsActive {
-		s.logger.Warn(ctx, "Token refresh failed - user inactive",
-			logger.Int("user_id", foundUser.ID),
+	if !user.IsActive {
+		s.logger.Warn(ctx, "Session refresh failed - user inactive",
+			logger.Int("user_id", user.ID),
 		)
-		return nil, user.ErrUserInactive
+		return nil, auth.ErrUserInactive
 	}
 
-	// Generate new access token with updated user role
-	newAccessToken, err := s.jwtManager.GenerateAccessToken(foundUser.ID, string(foundUser.Role))
+	err = s.sessionManager.RefreshSession(ctx, sessionID)
 	if err != nil {
-		s.logger.Error(ctx, "Failed to generate new access token during refresh",
-			logger.Int("user_id", foundUser.ID),
+		s.logger.Error(ctx, "Failed to refresh session",
+			logger.Int("user_id", user.ID),
 			logger.Error(err),
 		)
-		return nil, fmt.Errorf("failed to generate access token: %w", err)
+		return nil, fmt.Errorf("failed to refresh session: %w", err)
 	}
 
-	tokenPair := &auth.TokenPair{
-		AccessToken:  newAccessToken,
-		RefreshToken: req.RefreshToken,
+	s.logger.Info(ctx, "Session refreshed successfully",
+		logger.Int("user_id", user.ID),
+		logger.String("role", string(user.Role)))
+
+	return &auth.SessionResponse{
+		SessionID: sessionID,
+	}, nil
+}
+
+func (s *authService) Logout(ctx context.Context, sessionID string) error {
+	s.logger.Debug(ctx, "Processing logout")
+
+	err := s.sessionManager.DeleteSession(ctx, sessionID)
+	if err != nil {
+		s.logger.Error(ctx, "Failed to delete session during logout",
+			logger.String("session_id", sessionID),
+			logger.Error(err),
+		)
+		return fmt.Errorf("failed to delete session: %w", err)
 	}
 
-	s.logger.Info(ctx, "Token refreshed successfully",
-		logger.Int("user_id", foundUser.ID),
-		logger.String("role", string(foundUser.Role)))
+	s.logger.Info(ctx, "User logged out successfully",
+		logger.String("session_id", sessionID))
 
-	return tokenPair, nil
+	return nil
 }

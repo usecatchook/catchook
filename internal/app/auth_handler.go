@@ -39,27 +39,41 @@ func (c *Container) handleLogin(ctx *fiber.Ctx) error {
 	return response.Success(ctx, authResponse, "Login successful")
 }
 
-func (c *Container) handleRefreshToken(ctx *fiber.Ctx) error {
-	var req auth.RefreshTokenRequest
-	if err := c.Validator.ParseAndValidate(ctx, &req); err != nil {
-		if ve, ok := err.(*validator.ValidationErrors); ok {
-			return response.ValidationFailed(ctx, ve.Errors)
-		}
-		return response.BadRequest(ctx, "Invalid request format", nil)
+func (c *Container) handleRefreshSession(ctx *fiber.Ctx) error {
+	sessionID := ctx.Get("Authorization")
+	if sessionID == "" {
+		return response.Unauthorized(ctx, "Missing session ID")
 	}
 
-	c.Logger.Debug(ctx.UserContext(), "Processing token refresh")
+	c.Logger.Debug(ctx.UserContext(), "Processing session refresh")
 
-	tokenPair, err := c.AuthService.RefreshToken(ctx.UserContext(), req)
+	sessionResponse, err := c.AuthService.RefreshSession(ctx.UserContext(), sessionID)
 	if err != nil {
 		switch err {
-		case auth.ErrInvalidToken, auth.ErrTokenExpired:
-			return response.Unauthorized(ctx, "Invalid or expired refresh token")
+		case auth.ErrInvalidToken:
+			return response.Unauthorized(ctx, "Invalid or expired session")
 		default:
-			c.Logger.Error(ctx.UserContext(), "Token refresh failed", logger.Error(err))
-			return response.InternalError(ctx, "Token refresh failed")
+			c.Logger.Error(ctx.UserContext(), "Session refresh failed", logger.Error(err))
+			return response.InternalError(ctx, "Session refresh failed")
 		}
 	}
 
-	return response.Success(ctx, tokenPair, "Token refreshed successfully")
+	return response.Success(ctx, sessionResponse, "Session refreshed successfully")
+}
+
+func (c *Container) handleLogout(ctx *fiber.Ctx) error {
+	sessionID := ctx.Get("Authorization")
+	if sessionID == "" {
+		return response.Unauthorized(ctx, "Missing session ID")
+	}
+
+	c.Logger.Debug(ctx.UserContext(), "Processing logout")
+
+	err := c.AuthService.Logout(ctx.UserContext(), sessionID)
+	if err != nil {
+		c.Logger.Error(ctx.UserContext(), "Logout failed", logger.Error(err))
+		return response.InternalError(ctx, "Logout failed")
+	}
+
+	return response.Success(ctx, nil, "Logout successful")
 }
