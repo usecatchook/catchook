@@ -7,12 +7,12 @@ import (
 )
 
 type Response struct {
-	Success   bool        `json:"success"`
-	Message   string      `json:"message,omitempty"`
-	Data      interface{} `json:"data,omitempty"`
-	Error     *ErrorData  `json:"error,omitempty"`
-	Meta      *Meta       `json:"meta,omitempty"`
-	Timestamp time.Time   `json:"timestamp"`
+	Success    bool        `json:"success"`
+	Message    string      `json:"message,omitempty"`
+	Data       interface{} `json:"data,omitempty"`
+	Error      *ErrorData  `json:"error,omitempty"`
+	Pagination *Pagination `json:"pagination,omitempty"`
+	Timestamp  time.Time   `json:"timestamp"`
 }
 
 type ErrorData struct {
@@ -22,11 +22,13 @@ type ErrorData struct {
 	Field   string            `json:"field,omitempty"`
 }
 
-type Meta struct {
-	Page       int `json:"page,omitempty"`
-	Limit      int `json:"limit,omitempty"`
-	Total      int `json:"total,omitempty"`
-	TotalPages int `json:"total_pages,omitempty"`
+type Pagination struct {
+	CurrentPage int  `json:"current_page,omitempty"`
+	TotalPages  int  `json:"total_pages,omitempty"`
+	Total       int  `json:"total,omitempty"`
+	Limit       int  `json:"limit,omitempty"`
+	HasNext     bool `json:"has_next,omitempty"`
+	HasPrev     bool `json:"has_prev,omitempty"`
 }
 
 type ValidationError struct {
@@ -58,13 +60,13 @@ func NoContent(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func Paginated(c *fiber.Ctx, data interface{}, meta Meta, message string) error {
+func Paginated(c *fiber.Ctx, data interface{}, pagination Pagination, message string) error {
 	return c.Status(fiber.StatusOK).JSON(Response{
-		Success:   true,
-		Message:   message,
-		Data:      data,
-		Meta:      &meta,
-		Timestamp: time.Now().UTC(),
+		Success:    true,
+		Message:    message,
+		Data:       data,
+		Pagination: &pagination,
+		Timestamp:  time.Now().UTC(),
 	})
 }
 

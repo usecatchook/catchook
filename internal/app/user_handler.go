@@ -121,11 +121,31 @@ func (c *Container) handleGetMe(ctx *fiber.Ctx) error {
 }
 
 func (c *Container) handleListUsers(ctx *fiber.Ctx) error {
-	users, err := c.UserService.List(ctx.UserContext())
+	// Récupération des paramètres de pagination depuis les query parameters
+	page := ctx.QueryInt("page", 1)
+	limit := ctx.QueryInt("limit", 10)
+
+	// Validation des paramètres
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	c.Logger.Debug(ctx.UserContext(), "Listing users with pagination",
+		logger.Int("page", page),
+		logger.Int("limit", limit),
+	)
+
+	users, pagination, err := c.UserService.List(ctx.UserContext(), page, limit)
 	if err != nil {
 		c.Logger.Error(ctx.UserContext(), "Failed to list users", logger.Error(err))
 		return response.InternalError(ctx, "Failed to list users")
 	}
 
-	return response.Success(ctx, users, "Users retrieved successfully")
+	return response.Paginated(ctx, users, *pagination, "Users retrieved successfully")
 }

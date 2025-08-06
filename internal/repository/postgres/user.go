@@ -9,6 +9,7 @@ import (
 
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/pkg/logger"
+	"github.com/theotruvelot/catchook/pkg/response"
 	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
@@ -267,13 +268,37 @@ func (r *userRepository) CountUsers(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func (r *userRepository) List(ctx context.Context) ([]*user.User, error) {
-	r.logger.Debug(ctx, "Listing all users from database")
+func (r *userRepository) List(ctx context.Context, page, limit int) ([]*user.User, *response.Pagination, error) {
+	r.logger.Debug(ctx, "Listing users from database",
+		logger.Int("page", page),
+		logger.Int("limit", limit))
 
-	results, err := r.queries.ListUsers(ctx, 1000, 0) // Limit to 1000 users, offset 0
+	// Validation des paramètres de pagination
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Calcul de l'offset
+	offset := (page - 1) * limit
+
+	// Récupération du nombre total d'utilisateurs
+	total, err := r.CountUsers(ctx)
+	if err != nil {
+		r.logger.Error(ctx, "Failed to count users for pagination", logger.Error(err))
+		return nil, nil, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	// Récupération des utilisateurs avec pagination
+	results, err := r.queries.ListUsers(ctx, int32(limit), int32(offset))
 	if err != nil {
 		r.logger.Error(ctx, "Failed to list users from database", logger.Error(err))
-		return nil, fmt.Errorf("failed to list users: %w", err)
+		return nil, nil, fmt.Errorf("failed to list users: %w", err)
 	}
 
 	users := make([]*user.User, len(results))
@@ -291,6 +316,30 @@ func (r *userRepository) List(ctx context.Context) ([]*user.User, error) {
 		}
 	}
 
-	r.logger.Debug(ctx, "Users listed successfully from database", logger.Int("count", len(users)))
-	return users, nil
+	// Calcul des métadonnées de pagination
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
+	pagination := &response.Pagination{
+		CurrentPage: page,
+		TotalPages:  totalPages,
+		Total:       int(total),
+		Limit:       limit,
+		HasNext:     hasNext,
+		HasPrev:     hasPrev,
+	}
+
+	r.logger.Debug(ctx, "Users listed successfully from database",
+		logger.Int("count", len(users)),
+		logger.Int("page", page),
+		logger.Int("limit", limit),
+		logger.Int("total", int(total)),
+		logger.Int("total_pages", totalPages))
+
+	return users, pagination, nil
 }

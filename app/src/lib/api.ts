@@ -3,7 +3,7 @@ import { ApiResponse, PaginatedResponse } from "@/types/api";
 import { AuthResponse, LoginCredentials } from "@/types/auth";
 import { HealthCheckResponse } from '@/types/health';
 import { SetupAdminUserRequest } from "@/types/setup";
-import { CreateUserRequest, ListUsersResponse, UpdateUserRequest, User, UserFilters } from "@/types/user";
+import { CreateUserRequest, UpdateUserRequest, User, UserFilters } from "@/types/user";
 import axios, { AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
 
@@ -180,8 +180,8 @@ export const healthAPI = {
 };
 
 export const usersAPI = {
-    getUsers: async (filters: UserFilters = {}): Promise<PaginatedResponse<ListUsersResponse>> => {
-        const { data } = await apiClient.get<PaginatedResponse<ListUsersResponse>>('/users', { params: filters });
+    getUsers: async (filters: UserFilters = {}): Promise<PaginatedResponse<User>> => {
+        const { data } = await apiClient.get<PaginatedResponse<User>>('/users/admin/users', { params: filters });
         return data;
     },
 

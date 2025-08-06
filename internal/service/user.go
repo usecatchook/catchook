@@ -9,6 +9,7 @@ import (
 	"github.com/theotruvelot/catchook/pkg/cache"
 	"github.com/theotruvelot/catchook/pkg/crypto"
 	"github.com/theotruvelot/catchook/pkg/logger"
+	"github.com/theotruvelot/catchook/pkg/response"
 	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
@@ -192,19 +193,22 @@ func (s *userService) ChangePassword(ctx context.Context, id int, req user.Chang
 	return nil
 }
 
-func (s *userService) List(ctx context.Context) ([]*user.User, error) {
-	s.logger.Debug(ctx, "Listing all users")
+func (s *userService) List(ctx context.Context, page, limit int) ([]*user.User, *response.Pagination, error) {
+	s.logger.Debug(ctx, "Listing users", logger.Int("page", page), logger.Int("limit", limit))
 
-	users, err := s.userRepo.List(ctx)
+	users, meta, err := s.userRepo.List(ctx, page, limit)
 	if err != nil {
 		s.logger.Error(ctx, "Failed to list users", logger.Error(err))
-		return nil, fmt.Errorf("failed to list users: %w", err)
+		return nil, nil, fmt.Errorf("failed to list users: %w", err)
 	}
 
 	for _, u := range users {
 		u.Sanitize()
 	}
 
-	s.logger.Debug(ctx, "Users listed successfully", logger.Int("count", len(users)))
-	return users, nil
+	s.logger.Debug(ctx, "Users listed successfully",
+		logger.Int("count", len(users)),
+		logger.Int("page", page),
+		logger.Int("limit", limit))
+	return users, meta, nil
 }

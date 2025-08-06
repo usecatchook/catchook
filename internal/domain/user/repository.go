@@ -1,12 +1,16 @@
 package user
 
-import "context"
+import (
+	"context"
+
+	"github.com/theotruvelot/catchook/pkg/response"
+)
 
 type Repository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id int) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
-	List(ctx context.Context) ([]*User, error)
+	List(ctx context.Context, page, limit int) ([]*User, *response.Pagination, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id int) error
 	EmailExists(ctx context.Context, email string) (bool, error)

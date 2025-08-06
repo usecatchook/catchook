@@ -48,8 +48,8 @@ type ListUsersRequest struct {
 }
 
 type ListUsersResponse struct {
-	Users []*UserResponse `json:"data"`
-	Meta  *response.Meta  `json:"meta"`
+	Users      []*UserResponse      `json:"data"`
+	Pagination *response.Pagination `json:"pagination"`
 }
 
 func (u *User) ToResponse() *UserResponse {

@@ -35,13 +35,9 @@ export interface CreateUserRequest {
 }
 
 export interface UpdateUserRequest {
-    id: string;
+    id: number;
     first_name: string;
     last_name: string;
     role?: User['role'];
     is_active?: boolean;
-}
-
-export interface ListUsersResponse {
-    users: User[];
 }
