@@ -31,6 +31,7 @@ export default function LoginPage() {
         >
           {/* Logo that changes with theme */}
           <Image 
+            priority={true}
             src="/logo_black.svg" 
             alt="Catchook" 
             width={32} 
@@ -38,6 +39,7 @@ export default function LoginPage() {
             className="dark:hidden drop-shadow-sm"
           />
           <Image 
+            priority={true}
             src="/logo.svg" 
             alt="Catchook" 
             width={32} 
