@@ -1,0 +1,41 @@
+meta {
+  name: List Users
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{apiUrl}}/users/admin/users
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+tests {
+  test("Status should be 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Should return success", function() {
+    expect(res.getBody()).to.have.property('success', true);
+    expect(res.getBody()).to.have.property('message', 'Users retrieved successfully');
+    expect(res.getBody()).to.have.property('data');
+  });
+  
+  test("Should return array of users", function() {
+    const data = res.getBody().data;
+    expect(data).to.be.an('array');
+    
+    if (data.length > 0) {
+      const user = data[0];
+      expect(user).to.have.property('id');
+      expect(user).to.have.property('email');
+      expect(user).to.have.property('first_name');
+      expect(user).to.have.property('last_name');
+      expect(user).to.have.property('is_active');
+    }
+  });
+}
