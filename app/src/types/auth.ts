@@ -1,8 +1,7 @@
 import { User } from "./user";
 
-export interface AuthTokens {
-    access_token: string;
-    refresh_token: string;
+export interface AuthSession {
+    session_id: string;
 }
   
 export interface LoginCredentials {
@@ -12,5 +11,5 @@ export interface LoginCredentials {
   
 export interface AuthResponse {
     user: User;
-    tokens: AuthTokens;
+    session: AuthSession;
 }

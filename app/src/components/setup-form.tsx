@@ -1,16 +1,17 @@
 import { Button } from "@/components/ui/button"
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useValidationErrors } from "@/hooks/use-validation-errors"
 import { setupAPI } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { ApiError } from "@/types/api"
 import { SetupAdminUserRequest } from "@/types/setup"
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -24,19 +25,18 @@ export function SetupForm({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [setupError, setSetupError] = useState<string | null>(null);
-  const { validationErrors, setErrorsFromException, getFieldError, clearErrors } = useValidationErrors();
+  const { setErrorsFromException, getFieldError, clearErrors } = useValidationErrors();
 
-  const setupMutation = useMutation({
+  const setupMutation = useMutation<void, ApiError, SetupAdminUserRequest>({
     mutationFn: setupAPI.createAdminUser,
     onSuccess: () => {
       // Refresh the health status so the app knows that the first-time setup is done
       queryClient.invalidateQueries({ queryKey: ['health'] });
       router.push('/login');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       // Essayer d'extraire les erreurs de validation
       const hasValidationErrors = setErrorsFromException(error);
-      
       // Si pas d'erreurs de validation spécifiques, afficher l'erreur générale
       if (!hasValidationErrors) {
         setSetupError(error.message || 'An error occurred while creating the account');
@@ -55,19 +55,16 @@ export function SetupForm({
     onSubmit: async ({ value }) => {
       setSetupError(null);
       clearErrors();
-      
       if (value.password !== value.confirmPassword) {
         setSetupError('Passwords do not match');
         return;
       }
-
       const userData: SetupAdminUserRequest = {
         first_name: value.first_name,
         last_name: value.last_name || undefined,
         email: value.email,
         password: value.password,
       };
-
       try {
         await setupMutation.mutateAsync(userData);
       } catch (error) {

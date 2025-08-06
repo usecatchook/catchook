@@ -1,3 +1,4 @@
+import type { ApiError } from '@/types/api';
 import { useState } from 'react';
 
 export interface ValidationErrors {
@@ -7,17 +8,13 @@ export interface ValidationErrors {
 export function useValidationErrors() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
-  const setErrorsFromException = (error: any) => {
-    // Réinitialiser les erreurs
+  const setErrorsFromException = (error: ApiError) => {
     setValidationErrors({});
-    
-    // Extraire les erreurs de validation si elles existent
-    if (error?.validationErrors && typeof error.validationErrors === 'object') {
+    if (error.validationErrors && typeof error.validationErrors === 'object') {
       setValidationErrors(error.validationErrors);
-      return true; // Indique qu'on a trouvé des erreurs de validation
+      return true;
     }
-    
-    return false; // Pas d'erreurs de validation spécifiques
+    return false;
   };
 
   const getFieldError = (fieldName: string): string | undefined => {

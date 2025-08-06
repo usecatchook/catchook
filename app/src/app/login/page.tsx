@@ -3,12 +3,10 @@ import { ApiStatus } from "@/components/api-status"
 import { LoginForm } from "@/components/login-form"
 import { DotPattern } from "@/components/magicui/dot-pattern"
 import { ThemeToggleDropdown } from "@/components/theme-toggle-dropdown"
-import { useHealth } from "@/hooks/use-health"
 import Image from "next/image"
 import Link from "next/link"
 
 export default function LoginPage() {
-  useHealth();
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 overflow-hidden">

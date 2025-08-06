@@ -2,6 +2,7 @@
 
 import { useValidationErrors, ValidationErrors } from '@/hooks/use-validation-errors';
 import { authAPI } from '@/lib/api';
+import type { ApiError } from '@/types/api';
 import type { LoginCredentials } from '@/types/auth';
 import { User } from "@/types/user";
 import Cookies from 'js-cookie';
@@ -48,45 +49,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
   
   const { validationErrors, setErrorsFromException, getFieldError, clearErrors } = useValidationErrors();
   
-  // Vérification immédiate et synchrone des tokens
-  const authToken = Cookies.get('authToken');
-  const refreshToken = Cookies.get('refreshToken');
-  const hasTokens = !!(authToken && refreshToken);
+  // Vérification de la session
+  const sessionId = Cookies.get('session_id');
+  const hasSession = !!sessionId;
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
-  // Redirection immédiate basée sur les tokens seulement
+  // Redirection basée sur la session
   useEffect(() => {
-    // Si connecté (tokens présents) et sur page publique → redirect vers home
-    if (hasTokens && isPublicRoute) {
+    // Si connecté (session présente) et sur page publique → redirect vers home
+    if (hasSession && isPublicRoute) {
       router.replace('/');
       return;
     }
 
-    // Si pas connecté (pas de tokens) et sur page protégée → redirect vers login  
-    if (!hasTokens && !isPublicRoute) {
+    // Si pas connecté (pas de session) et sur page protégée → redirect vers login  
+    if (!hasSession && !isPublicRoute) {
       router.replace('/login');
       return;
     }
 
     // Si on arrive ici, pas de redirection nécessaire
     setIsReady(true);
-  }, [hasTokens, isPublicRoute, router]);
+  }, [hasSession, isPublicRoute, router]);
 
-  // Récupérer les données utilisateur si tokens présents
+  // Récupérer les données utilisateur si session présente
   useEffect(() => {
-    if (!hasTokens || !isReady) return;
+    if (!hasSession || !isReady) return;
 
     setIsLoading(true);
     authAPI.getCurrentUser()
       .then(setUser)
       .catch(() => {
-        // Si l'API échoue, tokens probablement expirés
-        Cookies.remove('authToken');
-        Cookies.remove('refreshToken');
+        // Si l'API échoue, session probablement expirée
+        Cookies.remove('session_id');
+        Cookies.remove('session_timestamp');
         router.replace('/login');
       })
       .finally(() => setIsLoading(false));
-  }, [hasTokens, isReady, router]);
+  }, [hasSession, isReady, router]);
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
     setIsLoggingIn(true);
@@ -95,30 +95,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     try {
       const data = await authAPI.login(credentials);
-      Cookies.set('authToken', data.tokens.access_token, { expires: 7 });
-      Cookies.set('refreshToken', data.tokens.refresh_token, { expires: 30 });
       setUser(data.user);
       router.replace('/');
     } catch (error) {
       // Essayer d'extraire les erreurs de validation
-      const hasValidationErrors = setErrorsFromException(error);
-      
+      const hasValidationErrors =
+        error && typeof error === 'object' && 'message' in error
+          ? setErrorsFromException(error as ApiError)
+          : false;
       // Si pas d'erreurs de validation spécifiques, afficher l'erreur générale
       if (!hasValidationErrors) {
         setLoginError(error instanceof Error ? error.message : 'Erreur de connexion');
       }
-      
       throw error;
     } finally {
       setIsLoggingIn(false);
     }
   };
 
-  const logout = () => {
-    Cookies.remove('authToken');
-    Cookies.remove('refreshToken');
-    setUser(undefined);
-    router.replace('/login');
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      // Même si le logout API échoue, on nettoie côté client
+      console.error('Logout API failed:', error);
+    } finally {
+      setUser(undefined);
+      router.replace('/login');
+    }
   };
 
   // Ne pas rendre si redirection en cours
@@ -126,7 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: hasTokens,
+    isAuthenticated: hasSession,
     isLoading,
     login,
     logout,

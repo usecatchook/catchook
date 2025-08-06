@@ -3,11 +3,16 @@ import { ApiResponse, PaginatedResponse } from "@/types/api";
 import { AuthResponse, LoginCredentials } from "@/types/auth";
 import { HealthCheckResponse } from '@/types/health';
 import { SetupAdminUserRequest } from "@/types/setup";
-import { CreateUserRequest, UpdateUserRequest, User, UserFilters } from "@/types/user";
+import { CreateUserRequest, ListUsersResponse, UpdateUserRequest, User, UserFilters } from "@/types/user";
 import axios, { AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+
+// Durée de session en millisecondes (24h)
+const SESSION_DURATION = 24 * 60 * 60 * 1000;
+// Marge de sécurité pour refresh (5 minutes avant expiration)
+const REFRESH_MARGIN = 5 * 60 * 1000;
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -15,10 +20,67 @@ export const apiClient = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
-// Intercepteur avec auto-refresh token
-apiClient.interceptors.request.use((config) => {
-    const token = Cookies.get('authToken');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+// Fonction pour vérifier si la session doit être refreshée
+const shouldRefreshSession = (): boolean => {
+    const sessionTimestamp = Cookies.get('session_timestamp');
+    if (!sessionTimestamp) return false;
+    
+    const timestamp = parseInt(sessionTimestamp);
+    const now = Date.now();
+    const timeUntilExpiry = timestamp + SESSION_DURATION - now;
+    
+    return timeUntilExpiry <= REFRESH_MARGIN;
+};
+
+// Fonction pour refresh la session
+const refreshSession = async (): Promise<string | null> => {
+    try {
+        const sessionId = Cookies.get('session_id');
+        if (!sessionId) return null;
+
+        const response = await axios.post<ApiResponse<AuthResponse>>(
+            `${API_BASE_URL}/auth/refresh`,
+            {},
+            {
+                headers: {
+                    'Authorization': sessionId
+                }
+            }
+        );
+
+        const { session_id } = response.data.data.session;
+        const timestamp = Date.now();
+        
+        Cookies.set('session_id', session_id);
+        Cookies.set('session_timestamp', timestamp.toString());
+        
+        return session_id;
+    } catch (error) {
+        console.error('Failed to refresh session:', error);
+        // Si le refresh échoue, on supprime les cookies et on redirige
+        Cookies.remove('session_id');
+        Cookies.remove('session_timestamp');
+        window.location.href = '/login';
+        return null;
+    }
+};
+
+// Intercepteur pour ajouter le session_id dans Authorization pour toutes les requêtes
+apiClient.interceptors.request.use(async (config) => {
+    const sessionId = Cookies.get('session_id');
+    
+    if (sessionId) {
+        // Vérifier si on doit refresh la session
+        if (shouldRefreshSession()) {
+            const newSessionId = await refreshSession();
+            if (newSessionId) {
+                config.headers['Authorization'] = newSessionId;
+            }
+        } else {
+            config.headers['Authorization'] = sessionId;
+        }
+    }
+    
     return config;
 });
 
@@ -31,22 +93,16 @@ apiClient.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refreshToken = Cookies.get('refreshToken');
-                if (refreshToken) {
-                    const response = await axios.post<ApiResponse<AuthResponse>>(
-                        `${API_BASE_URL}/auth/refresh`,
-                        { refreshToken }
-                    );
-
-                    const { access_token } = response.data.data.tokens;
-                    Cookies.set('authToken', access_token);
-
-                    originalRequest.headers.Authorization = `Bearer ${access_token}`;
+                // Essayer de refresh la session
+                const newSessionId = await refreshSession();
+                if (newSessionId) {
+                    originalRequest.headers['Authorization'] = newSessionId;
                     return apiClient(originalRequest);
                 }
             } catch {
-                Cookies.remove('authToken');
-                Cookies.remove('refreshToken');
+                // Si le refresh échoue, on supprime les cookies et on redirige
+                Cookies.remove('session_id');
+                Cookies.remove('session_timestamp');
                 window.location.href = '/login';
             }
         }
@@ -66,10 +122,18 @@ apiClient.interceptors.response.use(
     }
 );
 
-// API Methods typés
+// API Methods typés - Gestion technique uniquement
 export const authAPI = {
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         const { data } = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
+        
+        // Stocker le session_id et le timestamp lors du login
+        const { session_id } = data.data.session;
+        const timestamp = Date.now();
+        
+        Cookies.set('session_id', session_id);
+        Cookies.set('session_timestamp', timestamp.toString());
+        
         return data.data;
     },
 
@@ -80,6 +144,31 @@ export const authAPI = {
 
     logout: async (): Promise<void> => {
         await apiClient.post<ApiResponse<null>>('/auth/logout');
+        // Supprimer les cookies lors du logout
+        Cookies.remove('session_id');
+        Cookies.remove('session_timestamp');
+    },
+
+    // Méthode pour refresh manuellement la session
+    refreshSession: async (): Promise<AuthResponse> => {
+        const sessionId = Cookies.get('session_id');
+        if (!sessionId) {
+            throw new Error('No session ID found');
+        }
+
+        const { data } = await apiClient.post<ApiResponse<AuthResponse>>('/auth/refresh', {}, {
+            headers: {
+                'Authorization': sessionId
+            }
+        });
+        
+        const { session_id } = data.data.session;
+        const timestamp = Date.now();
+        
+        Cookies.set('session_id', session_id);
+        Cookies.set('session_timestamp', timestamp.toString());
+        
+        return data.data;
     },
 };
 
@@ -91,8 +180,8 @@ export const healthAPI = {
 };
 
 export const usersAPI = {
-    getUsers: async (filters: UserFilters = {}): Promise<PaginatedResponse<User>> => {
-        const { data } = await apiClient.get<PaginatedResponse<User>>('/users', { params: filters });
+    getUsers: async (filters: UserFilters = {}): Promise<PaginatedResponse<ListUsersResponse>> => {
+        const { data } = await apiClient.get<PaginatedResponse<ListUsersResponse>>('/users', { params: filters });
         return data;
     },
 

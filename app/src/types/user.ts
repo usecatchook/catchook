@@ -23,8 +23,8 @@ export interface UserFilters {
     search?: string;
     role?: UserRole;
     is_active?: boolean;
-    sort_by?: string;
-    sort_order?: 'asc' | 'desc';
+    order_by?: string;
+    order?: 'asc' | 'desc';
 }
 
 export interface CreateUserRequest {
@@ -39,5 +39,9 @@ export interface UpdateUserRequest {
     first_name: string;
     last_name: string;
     role?: User['role'];
-    isActive?: boolean;
+    is_active?: boolean;
+}
+
+export interface ListUsersResponse {
+    users: User[];
 }

@@ -27,3 +27,9 @@ export interface PaginatedResponse<TData = unknown> {
     };
     success: boolean;
 }
+
+export interface ApiError {
+  message: string;
+  validationErrors?: Record<string, string>;
+  [key: string]: unknown;
+}

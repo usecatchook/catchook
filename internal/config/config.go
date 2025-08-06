@@ -53,9 +53,7 @@ type RedisConfig struct {
 }
 
 type SessionConfig struct {
-	Duration    time.Duration `env:"SESSION_DURATION" envDefault:"24h"`
-	RefreshTime time.Duration `env:"SESSION_REFRESH_TIME" envDefault:"1h"`
-	Prefix      string        `env:"SESSION_PREFIX" envDefault:"session:"`
+	Duration time.Duration `env:"SESSION_DURATION" envDefault:"24h"`
 }
 
 type LoggerConfig struct {
