@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/theotruvelot/catchook/internal/app"
 	"github.com/theotruvelot/catchook/internal/config"
+	"github.com/theotruvelot/catchook/internal/server"
 	"github.com/theotruvelot/catchook/pkg/logger"
 )
 
@@ -41,13 +40,8 @@ func main() {
 	}
 	defer container.Close()
 
-	fiberApp := container.NewFiberApp()
-
-	// Setup routes
-	container.SetupRoutes(fiberApp)
-
-	// Server address
-	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	// Create HTTP server
+	httpServer := server.NewServer(container)
 
 	// Channel to listen for interrupt signal to trigger shutdown
 	quit := make(chan os.Signal, 1)
@@ -55,10 +49,7 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		appLogger.Info(ctx, "Starting HTTP server",
-			logger.String("address", addr),
-		)
-		if err := fiberApp.Listen(addr); err != nil {
+		if err := httpServer.Start(); err != nil {
 			appLogger.Fatal(ctx, "Failed to start server",
 				logger.Error(err),
 			)
@@ -69,11 +60,8 @@ func main() {
 	<-quit
 	appLogger.Info(ctx, "Shutting down server...")
 
-	// Graceful shutdown with timeout
-	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	if err := fiberApp.ShutdownWithContext(shutdownCtx); err != nil {
+	// Graceful shutdown
+	if err := httpServer.Shutdown(); err != nil {
 		appLogger.Error(ctx, "Server forced to shutdown",
 			logger.Error(err),
 		)

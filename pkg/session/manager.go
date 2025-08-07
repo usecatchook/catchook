@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/theotruvelot/catchook/pkg/cache"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -40,7 +41,7 @@ func NewManager(redis *redis.Client, duration time.Duration) Manager {
 }
 
 func (s *sessionManager) GetKey(sessionID string) string {
-	return fmt.Sprintf("session:%s", sessionID)
+	return fmt.Sprintf(cache.KeyUserSession, sessionID)
 }
 
 func (s *sessionManager) CreateSession(ctx context.Context, userID int, role string) (string, error) {

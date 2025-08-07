@@ -13,7 +13,6 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
-	Session  SessionConfig
 	Logger   LoggerConfig
 }
 
@@ -50,10 +49,6 @@ type RedisConfig struct {
 	DialTimeout  time.Duration `env:"REDIS_DIAL_TIMEOUT" envDefault:"5s"`
 	ReadTimeout  time.Duration `env:"REDIS_READ_TIMEOUT" envDefault:"3s"`
 	WriteTimeout time.Duration `env:"REDIS_WRITE_TIMEOUT" envDefault:"3s"`
-}
-
-type SessionConfig struct {
-	Duration time.Duration `env:"SESSION_DURATION" envDefault:"24h"`
 }
 
 type LoggerConfig struct {
