@@ -52,6 +52,7 @@ func (s *userService) Create(ctx context.Context, req user.CreateRequest) (*user
 		Password:  hashedPassword,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
+		Role:      generated.UserRole(req.Role),
 		IsActive:  true,
 	}
 

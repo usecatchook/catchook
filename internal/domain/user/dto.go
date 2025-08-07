@@ -12,6 +12,7 @@ type CreateRequest struct {
 	Password  string `json:"password" validate:"required,password"`
 	FirstName string `json:"first_name" validate:"required,min=2,max=50"`
 	LastName  string `json:"last_name" validate:"required,min=2,max=50"`
+	Role      string `json:"role" validate:"required,oneof=admin developer viewer"`
 }
 
 type UpdateRequest struct {

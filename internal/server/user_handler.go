@@ -7,6 +7,7 @@ import (
 	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/response"
 	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
+	"github.com/theotruvelot/catchook/storage/postgres/generated"
 	"strconv"
 )
 
@@ -16,7 +17,8 @@ func (s *Server) handleGetMe(c *fiber.Ctx) error {
 		return response.Unauthorized(c, "invalid session")
 	}
 
-	userResp, err := s.container.UserService.GetByID(c.Context(), currentUser.ID)
+	ctx := middleware.GetContextWithRequestID(c)
+	userResp, err := s.container.UserService.GetByID(ctx, currentUser.ID)
 	if err != nil {
 		return response.NotFound(c, "user not found")
 	}
@@ -25,7 +27,7 @@ func (s *Server) handleGetMe(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleGetProfile(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	userIDStr := c.Params("id")
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
@@ -39,7 +41,7 @@ func (s *Server) handleGetProfile(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleUpdateProfile(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	userIDStr := c.Params("id")
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
@@ -69,7 +71,7 @@ func (s *Server) handleUpdateProfile(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleListUsers(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "20"))
 
@@ -79,4 +81,33 @@ func (s *Server) handleListUsers(c *fiber.Ctx) error {
 	}
 
 	return response.Paginated(c, users, *pagination, "users list")
+}
+
+func (s *Server) handleCreateUser(c *fiber.Ctx) error {
+	ctx := middleware.GetContextWithRequestID(c)
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil || currentUser.Role != generated.UserRoleAdmin {
+		return response.Forbidden(c, "only admins can create users")
+	}
+
+	var req user.CreateRequest
+	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
+		var verr *validatorpkg.ValidationErrors
+		if errors.As(err, &verr) {
+			return response.ValidationFailed(c, verr.Errors)
+		}
+		return response.BadRequest(c, err.Error(), nil)
+	}
+
+	newUser, err := s.container.UserService.Create(ctx, req)
+	if err != nil {
+		switch {
+		case errors.Is(err, user.ErrEmailAlreadyExists):
+			return response.Conflict(c, "email already exists")
+		default:
+			return response.InternalError(c, "failed to create user")
+		}
+	}
+
+	return response.Success(c, newUser, "user created")
 }

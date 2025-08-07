@@ -9,6 +9,7 @@ import (
 
 	"github.com/theotruvelot/catchook/internal/app"
 	"github.com/theotruvelot/catchook/internal/config"
+	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/logger"
 )
 
@@ -61,7 +62,7 @@ func (s *Server) errorHandler(ctx *fiber.Ctx, err error) error {
 		message = e.Message
 	}
 
-	s.logger.Error(ctx.Context(), "HTTP error",
+	s.logger.Error(middleware.GetContextWithRequestID(ctx), "HTTP error",
 		logger.String("method", ctx.Method()),
 		logger.String("path", ctx.Path()),
 		logger.String("ip", ctx.IP()),

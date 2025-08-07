@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/theotruvelot/catchook/pkg/cache"
+	"github.com/theotruvelot/catchook/storage/postgres/generated"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -21,11 +23,11 @@ type Manager interface {
 }
 
 type Session struct {
-	ID        string    `json:"id"`
-	UserID    int       `json:"user_id"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        string             `json:"id"`
+	UserID    int                `json:"user_id"`
+	Role      generated.UserRole `json:"role"`
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
 }
 
 type sessionManager struct {
@@ -54,7 +56,7 @@ func (s *sessionManager) CreateSession(ctx context.Context, userID int, role str
 	session := &Session{
 		ID:        sessionID,
 		UserID:    userID,
-		Role:      role,
+		Role:      generated.UserRole(role),
 		CreatedAt: now,
 		ExpiresAt: now.Add(s.duration),
 	}
@@ -77,7 +79,7 @@ func (s *sessionManager) GetSession(ctx context.Context, sessionID string) (*Ses
 	key := s.GetKey(sessionID)
 	data, err := s.redis.Get(ctx, key).Result()
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			return nil, fmt.Errorf("session not found")
 		}
 		return nil, fmt.Errorf("failed to get session: %w", err)

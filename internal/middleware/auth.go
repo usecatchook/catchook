@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/theotruvelot/catchook/storage/postgres/generated"
 
 	"github.com/theotruvelot/catchook/pkg/response"
 	"github.com/theotruvelot/catchook/pkg/session"
@@ -10,8 +11,8 @@ import (
 const UserContextKey = "user"
 
 type User struct {
-	ID   int    `json:"id"`
-	Role string `json:"role"`
+	ID   int                `json:"id"`
+	Role generated.UserRole `json:"role"`
 }
 
 func SessionAuth(sessionManager session.Manager) fiber.Handler {
@@ -44,7 +45,7 @@ func RequireRoles(roles ...string) fiber.Handler {
 		}
 
 		for _, role := range roles {
-			if user.Role == role {
+			if user.Role == generated.UserRole(role) {
 				return c.Next()
 			}
 		}

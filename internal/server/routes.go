@@ -23,6 +23,9 @@ func (s *Server) setupRoutes() {
 	// Setup routes
 	s.setupSetupRoutes(api)
 
+	// Admin routes
+	s.setupAdminRoutes(api)
+
 	// 404 handler
 	s.app.Use(func(c *fiber.Ctx) error {
 		return response.NotFound(c, "Route not found")
@@ -48,13 +51,21 @@ func (s *Server) setupUserRoutes(api fiber.Router) {
 	users.Get("/profile/:id", s.handleGetProfile)
 	users.Put("/profile/:id", s.handleUpdateProfile)
 
-	// Admin routes
-	admin := users.Group("/admin")
-	admin.Use(middleware.RequireRoles("admin"))
-	admin.Get("/users", s.handleListUsers)
 }
 
-// setupSetupRoutes configures setup routes
+func (s *Server) setupAdminRoutes(api fiber.Router) {
+	admin := api.Group("/admin")
+
+	admin.Use(middleware.SessionAuth(s.container.Session))
+	admin.Use(middleware.RequireRoles("admin"))
+
+	//users management routes
+	admin.Get("/users", s.handleListUsers)
+	admin.Post("/users", s.handleCreateUser)
+	//admin.Put("/users/:id", s.handleUpdateUser) //TODO: Implement user update
+	//admin.Delete("/users/:id", s.handleDeleteUser) //TODO: Implement user delete
+}
+
 func (s *Server) setupSetupRoutes(api fiber.Router) {
 	setup := api.Group("/setup")
 

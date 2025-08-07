@@ -2,14 +2,16 @@ package server
 
 import (
 	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/theotruvelot/catchook/internal/domain/setup"
+	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/response"
 	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
 )
 
 func (s *Server) handleSetup(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	var req setup.CreateAdminUserRequest
 	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
 		var verr *validatorpkg.ValidationErrors

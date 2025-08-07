@@ -2,14 +2,16 @@ package server
 
 import (
 	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/theotruvelot/catchook/internal/domain/auth"
+	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/response"
 	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
 )
 
 func (s *Server) handleLogin(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	var req auth.LoginRequest
 	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
 		var verr *validatorpkg.ValidationErrors
@@ -26,7 +28,7 @@ func (s *Server) handleLogin(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleRefreshSession(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	var req struct {
 		SessionID string `json:"session_id" validate:"required"`
 	}
@@ -45,7 +47,7 @@ func (s *Server) handleRefreshSession(c *fiber.Ctx) error {
 }
 
 func (s *Server) handleLogout(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := middleware.GetContextWithRequestID(c)
 	var req struct {
 		SessionID string `json:"session_id" validate:"required"`
 	}

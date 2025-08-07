@@ -1,17 +1,26 @@
 meta {
-  name: List Users
+  name: Create User
   type: http
   seq: 1
 }
 
-get {
+post {
   url: {{apiUrl}}/admin/users
-  body: none
+  body: json
   auth: none
 }
 
 headers {
   Authorization: {{session_id}}
+}
+
+body:json {
+  {
+    "email": "john.doe@example.com",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+  }
 }
 
 tests {

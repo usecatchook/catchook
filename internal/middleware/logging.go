@@ -18,7 +18,9 @@ func RequestLogging(baseLogger logger.Logger) fiber.Handler {
 		start := time.Now()
 		requestID := generateRequestID()
 
-		c.SetUserContext(context.WithValue(context.Background(), logger.RequestIDKey, requestID))
+		// Store request_id in Fiber context
+		fiberCtx := context.WithValue(c.UserContext(), logger.RequestIDKey, requestID)
+		c.SetUserContext(fiberCtx)
 
 		fields := []zap.Field{
 			logger.String("method", c.Method()),
@@ -32,7 +34,7 @@ func RequestLogging(baseLogger logger.Logger) fiber.Handler {
 			}
 		}
 
-		baseLogger.Info(c.UserContext(), "Request received", fields...)
+		baseLogger.Info(fiberCtx, "Request received", fields...)
 
 		err := c.Next()
 
@@ -51,13 +53,13 @@ func RequestLogging(baseLogger logger.Logger) fiber.Handler {
 
 		if err != nil {
 			responseFields = append(responseFields, logger.Error(err))
-			baseLogger.Error(c.UserContext(), "Request failed", responseFields...)
+			baseLogger.Error(fiberCtx, "Request failed", responseFields...)
 		} else if c.Response().StatusCode() >= 500 {
-			baseLogger.Error(c.UserContext(), "Request completed with server error", responseFields...)
+			baseLogger.Error(fiberCtx, "Request completed with server error", responseFields...)
 		} else if c.Response().StatusCode() >= 400 {
-			baseLogger.Warn(c.UserContext(), "Request completed with client error", responseFields...)
+			baseLogger.Warn(fiberCtx, "Request completed with client error", responseFields...)
 		} else {
-			baseLogger.Info(c.UserContext(), "Request completed", responseFields...)
+			baseLogger.Info(fiberCtx, "Request completed", responseFields...)
 		}
 
 		return err
@@ -68,6 +70,16 @@ func generateRequestID() string {
 	bytes := make([]byte, 8)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// GetContextWithRequestID returns a Go context with the request_id from Fiber context
+func GetContextWithRequestID(c *fiber.Ctx) context.Context {
+	if requestID := c.UserContext().Value(logger.RequestIDKey); requestID != nil {
+		if id, ok := requestID.(string); ok {
+			return context.WithValue(c.Context(), logger.RequestIDKey, id)
+		}
+	}
+	return c.Context()
 }
 
 func maskSensitiveData(body string) string {
