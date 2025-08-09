@@ -53,12 +53,10 @@ func (v *Validator) Validate(s interface{}) map[string]string {
 }
 
 func (v *Validator) ParseAndValidate(c *fiber.Ctx, dest interface{}) error {
-	// Parse le JSON body
 	if err := c.BodyParser(dest); err != nil {
 		return fmt.Errorf("invalid JSON format: %w", err)
 	}
 
-	// Validate la structure
 	if errors := v.Validate(dest); len(errors) > 0 {
 		return &ValidationErrors{Errors: errors}
 	}
@@ -142,55 +140,5 @@ func registerCustomValidators(v *validator.Validate) {
 		return hasUpper && hasLower && hasNumber && hasSpecial
 	})
 
-	v.RegisterValidation("phone", func(fl validator.FieldLevel) bool {
-		phone := fl.Field().String()
-		phoneRegex := regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
-		return phoneRegex.MatchString(phone)
-	})
-
-	v.RegisterValidation("username", func(fl validator.FieldLevel) bool {
-		username := fl.Field().String()
-		if len(username) < 3 || len(username) > 30 {
-			return false
-		}
-		usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-		return usernameRegex.MatchString(username)
-	})
-
-	v.RegisterValidation("webhook_url", func(fl validator.FieldLevel) bool {
-		url := fl.Field().String()
-		webhookURLRegex := regexp.MustCompile(`^https://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$`)
-		return webhookURLRegex.MatchString(url)
-	})
-
-	v.RegisterValidation("no_sql", func(fl validator.FieldLevel) bool {
-		value := strings.ToLower(fl.Field().String())
-		sqlKeywords := []string{
-			"select", "insert", "update", "delete", "drop", "create", "alter",
-			"union", "where", "from", "join", "group", "order", "having",
-			"--", "/*", "*/", ";", "'", "\"",
-		}
-
-		for _, keyword := range sqlKeywords {
-			if strings.Contains(value, keyword) {
-				return false
-			}
-		}
-		return true
-	})
-
-	v.RegisterValidation("no_xss", func(fl validator.FieldLevel) bool {
-		value := strings.ToLower(fl.Field().String())
-		xssPatterns := []string{
-			"<script", "</script>", "javascript:", "onclick", "onload",
-			"onerror", "onmouseover", "onfocus", "onblur", "eval(",
-		}
-
-		for _, pattern := range xssPatterns {
-			if strings.Contains(value, pattern) {
-				return false
-			}
-		}
-		return true
-	})
+	//custom validators
 }
