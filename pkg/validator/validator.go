@@ -44,12 +44,47 @@ func (v *Validator) Validate(s interface{}) map[string]string {
 
 	if err := v.validator.Struct(s); err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
-			fieldName := err.Field()
-			errors[fieldName] = v.getErrorMessage(err)
+			fieldPath := v.getFieldPath(err)
+			errors[fieldPath] = v.getErrorMessage(err)
 		}
 	}
 
 	return errors
+}
+
+func (v *Validator) getFieldPath(fe validator.FieldError) string {
+	namespace := fe.Namespace()
+
+	parts := strings.Split(namespace, ".")
+	if len(parts) > 1 {
+		path := strings.Join(parts[1:], ".")
+		return v.convertToJSONPath(path)
+	}
+
+	return fe.Field()
+}
+
+func (v *Validator) convertToJSONPath(path string) string {
+	parts := strings.Split(path, ".")
+	var jsonParts []string
+
+	for _, part := range parts {
+		jsonPart := v.toSnakeCase(part)
+		jsonParts = append(jsonParts, jsonPart)
+	}
+
+	return strings.Join(jsonParts, ".")
+}
+
+func (v *Validator) toSnakeCase(s string) string {
+	result := ""
+	for i, r := range s {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			result += "_"
+		}
+		result += strings.ToLower(string(r))
+	}
+	return result
 }
 
 func (v *Validator) ParseAndValidate(c *fiber.Ctx, dest interface{}) error {
@@ -80,6 +115,14 @@ func (v *Validator) getErrorMessage(fe validator.FieldError) string {
 	switch tag {
 	case "required":
 		return fmt.Sprintf("%s is required", field)
+	case "required_if":
+		parts := strings.Split(param, " ")
+		if len(parts) >= 2 {
+			conditionField := parts[0]
+			conditionValue := strings.Join(parts[1:], " ")
+			return fmt.Sprintf("%s is required when %s is %s", field, conditionField, conditionValue)
+		}
+		return fmt.Sprintf("%s is required under certain conditions", field)
 	case "email":
 		return fmt.Sprintf("%s must be a valid email address", field)
 	case "min":
@@ -121,7 +164,7 @@ func (v *Validator) getErrorMessage(fe validator.FieldError) string {
 	case "username":
 		return fmt.Sprintf("%s must be 3-30 characters and contain only letters, numbers, dots, underscores and hyphens", field)
 	default:
-		return fmt.Sprintf("%s is invalid", field)
+		return fmt.Sprintf("%s is invalid (validation: %s)", field, tag)
 	}
 }
 
@@ -139,6 +182,4 @@ func registerCustomValidators(v *validator.Validate) {
 
 		return hasUpper && hasLower && hasNumber && hasSpecial
 	})
-
-	//custom validators
 }

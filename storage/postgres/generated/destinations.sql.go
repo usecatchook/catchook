@@ -8,6 +8,7 @@ package generated
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,7 +19,7 @@ INSERT INTO destinations (
 RETURNING id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at
 `
 
-func (q *Queries) CreateDestination(ctx context.Context, userID pgtype.UUID, name string, description pgtype.Text, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error) {
+func (q *Queries) CreateDestination(ctx context.Context, userID uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error) {
 	row := q.db.QueryRow(ctx, createDestination,
 		userID,
 		name,
@@ -50,7 +51,7 @@ const deleteDestination = `-- name: DeleteDestination :exec
 DELETE FROM destinations WHERE id = $1
 `
 
-func (q *Queries) DeleteDestination(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteDestination(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteDestination, id)
 	return err
 }
@@ -59,7 +60,7 @@ const getDestinationByID = `-- name: GetDestinationByID :one
 SELECT id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at FROM destinations WHERE id = $1
 `
 
-func (q *Queries) GetDestinationByID(ctx context.Context, id pgtype.UUID) (Destination, error) {
+func (q *Queries) GetDestinationByID(ctx context.Context, id uuid.UUID) (Destination, error) {
 	row := q.db.QueryRow(ctx, getDestinationByID, id)
 	var i Destination
 	err := row.Scan(
@@ -82,7 +83,7 @@ const listActiveDestinationsByUser = `-- name: ListActiveDestinationsByUser :man
 SELECT id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at FROM destinations WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC
 `
 
-func (q *Queries) ListActiveDestinationsByUser(ctx context.Context, userID pgtype.UUID) ([]Destination, error) {
+func (q *Queries) ListActiveDestinationsByUser(ctx context.Context, userID uuid.UUID) ([]Destination, error) {
 	rows, err := q.db.Query(ctx, listActiveDestinationsByUser, userID)
 	if err != nil {
 		return nil, err
@@ -128,7 +129,7 @@ WHERE id = $1
 RETURNING id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at
 `
 
-func (q *Queries) UpdateDestination(ctx context.Context, iD pgtype.UUID, name string, description pgtype.Text, destinationType DestinationType, config []byte, isActive pgtype.Bool, delaySeconds pgtype.Int4, retryAttempts pgtype.Int4) (Destination, error) {
+func (q *Queries) UpdateDestination(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, config []byte, isActive pgtype.Bool, delaySeconds pgtype.Int4, retryAttempts pgtype.Int4) (Destination, error) {
 	row := q.db.QueryRow(ctx, updateDestination,
 		iD,
 		name,

@@ -1,0 +1,35 @@
+meta {
+  name: Get
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{apiUrl}}/sources/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+body:json {
+  {
+    "name": "{{$randomUUID}}",
+    "protocol": "http",
+    "auth_type": "basic",
+    "basic_auth": {
+      "password": "secret",
+      "username": "test"
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}

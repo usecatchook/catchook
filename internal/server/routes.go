@@ -26,6 +26,9 @@ func (s *Server) setupRoutes() {
 	// Admin routes
 	s.setupAdminRoutes(api)
 
+	// Source routes
+	s.setupSourceRoutes(api)
+
 	// 404 handler
 	s.app.Use(func(c *fiber.Ctx) error {
 		return response.NotFound(c, "Route not found")
@@ -70,4 +73,14 @@ func (s *Server) setupSetupRoutes(api fiber.Router) {
 	setup := api.Group("/setup")
 
 	setup.Post("/", s.handleSetup)
+}
+
+func (s *Server) setupSourceRoutes(api fiber.Router) {
+	sources := api.Group("/sources")
+
+	sources.Use(middleware.SessionAuth(s.container.Session))
+
+	sources.Post("/", s.handleCreateSource)
+	sources.Get(":id", s.handleGetSource)
+	//TODO UDL
 }

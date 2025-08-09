@@ -8,6 +8,7 @@ package generated
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,7 +19,7 @@ INSERT INTO rules (
 RETURNING id, user_id, source_id, destination_id, name, version, is_active, mode, config, code, created_at, updated_at
 `
 
-func (q *Queries) CreateRule(ctx context.Context, userID pgtype.UUID, sourceID pgtype.UUID, destinationID pgtype.UUID, name string, column5 interface{}, column6 interface{}, mode RuleMode, column8 interface{}, code pgtype.Text) (Rule, error) {
+func (q *Queries) CreateRule(ctx context.Context, userID uuid.UUID, sourceID uuid.UUID, destinationID uuid.UUID, name string, column5 interface{}, column6 interface{}, mode RuleMode, column8 interface{}, code pgtype.Text) (Rule, error) {
 	row := q.db.QueryRow(ctx, createRule,
 		userID,
 		sourceID,
@@ -52,7 +53,7 @@ const deleteRule = `-- name: DeleteRule :exec
 DELETE FROM rules WHERE id = $1
 `
 
-func (q *Queries) DeleteRule(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteRule(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteRule, id)
 	return err
 }
@@ -61,7 +62,7 @@ const getRuleByID = `-- name: GetRuleByID :one
 SELECT id, user_id, source_id, destination_id, name, version, is_active, mode, config, code, created_at, updated_at FROM rules WHERE id = $1
 `
 
-func (q *Queries) GetRuleByID(ctx context.Context, id pgtype.UUID) (Rule, error) {
+func (q *Queries) GetRuleByID(ctx context.Context, id uuid.UUID) (Rule, error) {
 	row := q.db.QueryRow(ctx, getRuleByID, id)
 	var i Rule
 	err := row.Scan(
@@ -85,7 +86,7 @@ const listActiveRulesByUser = `-- name: ListActiveRulesByUser :many
 SELECT id, user_id, source_id, destination_id, name, version, is_active, mode, config, code, created_at, updated_at FROM rules WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC
 `
 
-func (q *Queries) ListActiveRulesByUser(ctx context.Context, userID pgtype.UUID) ([]Rule, error) {
+func (q *Queries) ListActiveRulesByUser(ctx context.Context, userID uuid.UUID) ([]Rule, error) {
 	rows, err := q.db.Query(ctx, listActiveRulesByUser, userID)
 	if err != nil {
 		return nil, err
@@ -122,7 +123,7 @@ const listRulesBySourceAndDestination = `-- name: ListRulesBySourceAndDestinatio
 SELECT id, user_id, source_id, destination_id, name, version, is_active, mode, config, code, created_at, updated_at FROM rules WHERE source_id = $1 AND destination_id = $2 ORDER BY version DESC
 `
 
-func (q *Queries) ListRulesBySourceAndDestination(ctx context.Context, sourceID pgtype.UUID, destinationID pgtype.UUID) ([]Rule, error) {
+func (q *Queries) ListRulesBySourceAndDestination(ctx context.Context, sourceID uuid.UUID, destinationID uuid.UUID) ([]Rule, error) {
 	rows, err := q.db.Query(ctx, listRulesBySourceAndDestination, sourceID, destinationID)
 	if err != nil {
 		return nil, err
@@ -168,7 +169,7 @@ WHERE id = $1
 RETURNING id, user_id, source_id, destination_id, name, version, is_active, mode, config, code, created_at, updated_at
 `
 
-func (q *Queries) UpdateRule(ctx context.Context, iD pgtype.UUID, name string, version int32, isActive bool, mode RuleMode, config []byte, code pgtype.Text) (Rule, error) {
+func (q *Queries) UpdateRule(ctx context.Context, iD uuid.UUID, name string, version int32, isActive bool, mode RuleMode, config []byte, code pgtype.Text) (Rule, error) {
 	row := q.db.QueryRow(ctx, updateRule,
 		iD,
 		name,

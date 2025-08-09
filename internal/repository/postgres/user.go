@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/pkg/logger"
 	"github.com/theotruvelot/catchook/pkg/response"
-	"github.com/theotruvelot/catchook/pkg/utils"
 	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
@@ -67,7 +67,7 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*user.User, er
 		logger.String("user_id", id),
 	)
 
-	pgUUID, err := utils.ParseUUID(id)
+	uid, err := uuid.Parse(id)
 	if err != nil {
 		r.logger.Error(ctx, "Invalid UUID format",
 			logger.String("user_id", id),
@@ -76,7 +76,7 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*user.User, er
 		return nil, fmt.Errorf("invalid user ID format: %w", err)
 	}
 
-	result, err := r.queries.GetUserByID(ctx, pgUUID)
+	result, err := r.queries.GetUserByID(ctx, uid)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found in database",
@@ -153,7 +153,7 @@ func (r *userRepository) Update(ctx context.Context, user *user.User) error {
 		logger.String("email", user.Email),
 	)
 
-	pgUUID, err := utils.ParseUUID(user.ID)
+	uid, err := uuid.Parse(user.ID)
 	if err != nil {
 		r.logger.Error(ctx, "Invalid UUID format for update",
 			logger.String("user_id", user.ID),
@@ -163,7 +163,7 @@ func (r *userRepository) Update(ctx context.Context, user *user.User) error {
 	}
 
 	result, err := r.queries.UpdateUser(ctx,
-		pgUUID,
+		uid,
 		user.Role,
 		user.FirstName,
 		user.LastName,
@@ -198,7 +198,7 @@ func (r *userRepository) Delete(ctx context.Context, id string) error {
 		logger.String("user_id", id),
 	)
 
-	pgUUID, err := utils.ParseUUID(id)
+	uid, err := uuid.Parse(id)
 	if err != nil {
 		r.logger.Error(ctx, "Invalid UUID format for deletion",
 			logger.String("user_id", id),
@@ -207,7 +207,7 @@ func (r *userRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("invalid user ID format: %w", err)
 	}
 
-	err = r.queries.DeleteUser(ctx, pgUUID)
+	err = r.queries.DeleteUser(ctx, uid)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found for deletion",
@@ -256,7 +256,7 @@ func (r *userRepository) UpdatePassword(ctx context.Context, userID string, hash
 		logger.String("user_id", userID),
 	)
 
-	pgUUID, err := utils.ParseUUID(userID)
+	uid, err := uuid.Parse(userID)
 	if err != nil {
 		r.logger.Error(ctx, "Invalid UUID format for password update",
 			logger.String("user_id", userID),
@@ -265,7 +265,7 @@ func (r *userRepository) UpdatePassword(ctx context.Context, userID string, hash
 		return fmt.Errorf("invalid user ID format: %w", err)
 	}
 
-	_, err = r.queries.UpdateUserPassword(ctx, pgUUID, hashedPassword)
+	_, err = r.queries.UpdateUserPassword(ctx, uid, hashedPassword)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found for password update",

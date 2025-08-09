@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -321,9 +322,9 @@ func (ns NullWebhookStatus) Value() (driver.Value, error) {
 }
 
 type Delivery struct {
-	ID             pgtype.UUID        `db:"id" json:"id"`
-	WebhookEventID pgtype.UUID        `db:"webhook_event_id" json:"webhook_event_id"`
-	DestinationID  pgtype.UUID        `db:"destination_id" json:"destination_id"`
+	ID             uuid.UUID          `db:"id" json:"id"`
+	WebhookEventID uuid.UUID          `db:"webhook_event_id" json:"webhook_event_id"`
+	DestinationID  uuid.UUID          `db:"destination_id" json:"destination_id"`
 	Status         DeliveryStatus     `db:"status" json:"status"`
 	ResponseCode   pgtype.Int4        `db:"response_code" json:"response_code"`
 	Attempt        pgtype.Int4        `db:"attempt" json:"attempt"`
@@ -334,8 +335,8 @@ type Delivery struct {
 }
 
 type Destination struct {
-	ID              pgtype.UUID        `db:"id" json:"id"`
-	UserID          pgtype.UUID        `db:"user_id" json:"user_id"`
+	ID              uuid.UUID          `db:"id" json:"id"`
+	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
 	Name            string             `db:"name" json:"name"`
 	Description     pgtype.Text        `db:"description" json:"description"`
 	DestinationType DestinationType    `db:"destination_type" json:"destination_type"`
@@ -348,10 +349,10 @@ type Destination struct {
 }
 
 type Rule struct {
-	ID            pgtype.UUID        `db:"id" json:"id"`
-	UserID        pgtype.UUID        `db:"user_id" json:"user_id"`
-	SourceID      pgtype.UUID        `db:"source_id" json:"source_id"`
-	DestinationID pgtype.UUID        `db:"destination_id" json:"destination_id"`
+	ID            uuid.UUID          `db:"id" json:"id"`
+	UserID        uuid.UUID          `db:"user_id" json:"user_id"`
+	SourceID      uuid.UUID          `db:"source_id" json:"source_id"`
+	DestinationID uuid.UUID          `db:"destination_id" json:"destination_id"`
 	Name          string             `db:"name" json:"name"`
 	Version       int32              `db:"version" json:"version"`
 	IsActive      bool               `db:"is_active" json:"is_active"`
@@ -363,10 +364,10 @@ type Rule struct {
 }
 
 type Source struct {
-	ID          pgtype.UUID        `db:"id" json:"id"`
-	UserID      pgtype.UUID        `db:"user_id" json:"user_id"`
+	ID          uuid.UUID          `db:"id" json:"id"`
+	UserID      uuid.UUID          `db:"user_id" json:"user_id"`
 	Name        string             `db:"name" json:"name"`
-	Description pgtype.Text        `db:"description" json:"description"`
+	Description string             `db:"description" json:"description"`
 	Protocol    ProtocolType       `db:"protocol" json:"protocol"`
 	AuthType    AuthType           `db:"auth_type" json:"auth_type"`
 	AuthConfig  []byte             `db:"auth_config" json:"auth_config"`
@@ -376,7 +377,7 @@ type Source struct {
 }
 
 type User struct {
-	ID           pgtype.UUID        `db:"id" json:"id"`
+	ID           uuid.UUID          `db:"id" json:"id"`
 	Email        string             `db:"email" json:"email"`
 	Role         UserRole           `db:"role" json:"role"`
 	PasswordHash string             `db:"password_hash" json:"password_hash"`
@@ -388,8 +389,8 @@ type User struct {
 }
 
 type WebhookEvent struct {
-	ID                   pgtype.UUID        `db:"id" json:"id"`
-	SourceID             pgtype.UUID        `db:"source_id" json:"source_id"`
+	ID                   uuid.UUID          `db:"id" json:"id"`
+	SourceID             uuid.UUID          `db:"source_id" json:"source_id"`
 	Payload              []byte             `db:"payload" json:"payload"`
 	Metadata             []byte             `db:"metadata" json:"metadata"`
 	AppliedRuleVersionID pgtype.UUID        `db:"applied_rule_version_id" json:"applied_rule_version_id"`

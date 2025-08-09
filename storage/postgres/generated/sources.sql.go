@@ -8,20 +8,21 @@ package generated
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSource = `-- name: CreateSource :one
 INSERT INTO sources (
-    user_id, name, description, protocol, auth_type, auth_config, is_active
+    name, user_id, description, protocol, auth_type, auth_config, is_active
 ) VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, TRUE))
 RETURNING id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at
 `
 
-func (q *Queries) CreateSource(ctx context.Context, userID pgtype.UUID, name string, description pgtype.Text, protocol ProtocolType, authType AuthType, authConfig []byte, column7 interface{}) (Source, error) {
+func (q *Queries) CreateSource(ctx context.Context, name string, userID uuid.UUID, description string, protocol ProtocolType, authType AuthType, authConfig []byte, column7 interface{}) (Source, error) {
 	row := q.db.QueryRow(ctx, createSource,
-		userID,
 		name,
+		userID,
 		description,
 		protocol,
 		authType,
@@ -48,7 +49,7 @@ const deleteSource = `-- name: DeleteSource :exec
 DELETE FROM sources WHERE id = $1
 `
 
-func (q *Queries) DeleteSource(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteSource(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteSource, id)
 	return err
 }
@@ -57,8 +58,30 @@ const getSourceByID = `-- name: GetSourceByID :one
 SELECT id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at FROM sources WHERE id = $1
 `
 
-func (q *Queries) GetSourceByID(ctx context.Context, id pgtype.UUID) (Source, error) {
+func (q *Queries) GetSourceByID(ctx context.Context, id uuid.UUID) (Source, error) {
 	row := q.db.QueryRow(ctx, getSourceByID, id)
+	var i Source
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.Protocol,
+		&i.AuthType,
+		&i.AuthConfig,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSourceByName = `-- name: GetSourceByName :one
+SELECT id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at FROM sources where name = $1
+`
+
+func (q *Queries) GetSourceByName(ctx context.Context, name string) (Source, error) {
+	row := q.db.QueryRow(ctx, getSourceByName, name)
 	var i Source
 	err := row.Scan(
 		&i.ID,
@@ -79,7 +102,7 @@ const listSourcesByUser = `-- name: ListSourcesByUser :many
 SELECT id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at FROM sources WHERE user_id = $1 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListSourcesByUser(ctx context.Context, userID pgtype.UUID) ([]Source, error) {
+func (q *Queries) ListSourcesByUser(ctx context.Context, userID uuid.UUID) ([]Source, error) {
 	rows, err := q.db.Query(ctx, listSourcesByUser, userID)
 	if err != nil {
 		return nil, err
@@ -123,7 +146,7 @@ WHERE id = $1
 RETURNING id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at
 `
 
-func (q *Queries) UpdateSource(ctx context.Context, iD pgtype.UUID, name string, description pgtype.Text, protocol ProtocolType, authType AuthType, authConfig []byte, isActive pgtype.Bool) (Source, error) {
+func (q *Queries) UpdateSource(ctx context.Context, iD uuid.UUID, name string, description string, protocol ProtocolType, authType AuthType, authConfig []byte, isActive pgtype.Bool) (Source, error) {
 	row := q.db.QueryRow(ctx, updateSource,
 		iD,
 		name,

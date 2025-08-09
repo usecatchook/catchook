@@ -1,18 +1,30 @@
 package source
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
+)
+
+type AuthType string
+
+const (
+	AuthTypeNone      AuthType = "none"
+	AuthTypeBasic     AuthType = "basic"
+	AuthTypeBearer    AuthType = "bearer"
+	AuthTypeApikey    AuthType = "apikey"
+	AuthTypeSignature AuthType = "signature"
 )
 
 type CreateRequest struct {
 	Name          string               `json:"name" validate:"required,min=2,max=50"`
 	Description   string               `json:"description" validate:"omitempty,max=255"`
 	Protocol      string               `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
-	AuthType      string               `json:"auth_type" validate:"required,oneof=none basic bearer apikey signature"`
-	BasicAuth     *BasicAuthConfig     `json:"basic_auth,omitempty" validate:"omitempty,required_if=AuthType basic,dive"`
-	BearerAuth    *BearerAuthConfig    `json:"bearer_auth,omitempty" validate:"omitempty,required_if=AuthType bearer,dive"`
-	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth,omitempty" validate:"omitempty,required_if=AuthType apikey,dive"`
-	SignatureAuth *SignatureAuthConfig `json:"signature_auth,omitempty" validate:"omitempty,required_if=AuthType signature,dive"`
+	AuthType      AuthType             `json:"auth_type" validate:"required,oneof=none basic bearer apikey signature"`
+	BasicAuth     *BasicAuthConfig     `json:"basic_auth" validate:"required_if=AuthType basic"`
+	BearerAuth    *BearerAuthConfig    `json:"bearer_auth" validate:"required_if=AuthType bearer"`
+	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth" validate:"required_if=AuthType apikey"`
+	SignatureAuth *SignatureAuthConfig `json:"signature_auth" validate:"required_if=AuthType signature"`
 }
 
 type BasicAuthConfig struct {
@@ -25,9 +37,8 @@ type BearerAuthConfig struct {
 }
 
 type APIKeyAuthConfig struct {
-	Key      string `json:"key" validate:"required,min=1"`
-	Location string `json:"location" validate:"required,oneof=header query"`
-	Name     string `json:"name" validate:"required,min=1"`
+	Location string `json:"location" validate:"required,min=1"`
+	Value    string `json:"value" validate:"required,min=1"`
 }
 
 type SignatureAuthConfig struct {
@@ -41,24 +52,21 @@ type UpdateRequest struct {
 	Name          string               `json:"name" validate:"required,min=2,max=50"`
 	Description   string               `json:"description" validate:"omitempty,max=255"`
 	Protocol      string               `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
-	BasicAuth     *BasicAuthConfig     `json:"basic_auth,omitempty" validate:"omitempty,required_if=AuthType basic,dive"`
-	BearerAuth    *BearerAuthConfig    `json:"bearer_auth,omitempty" validate:"omitempty,required_if=AuthType bearer,dive"`
-	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth,omitempty" validate:"omitempty,required_if=AuthType apikey,dive"`
-	SignatureAuth *SignatureAuthConfig `json:"signature_auth,omitempty" validate:"omitempty,required_if=AuthType signature,dive"`
+	BasicAuth     *BasicAuthConfig     `json:"basic_auth" validate:"required_if=AuthType basic"`
+	BearerAuth    *BearerAuthConfig    `json:"bearer_auth" validate:"required_if=AuthType bearer"`
+	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth" validate:"required_if=AuthType apikey"`
+	SignatureAuth *SignatureAuthConfig `json:"signature_auth" validate:"required_if=AuthType signature"`
 }
 
 type SourceResponse struct {
-	ID            string               `json:"id"`
-	Name          string               `json:"name"`
-	Protocol      string               `json:"protocol"`
-	AuthType      string               `json:"auth_type"`
-	IsActive      bool                 `json:"is_active"`
-	CreatedAt     time.Time            `json:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at"`
-	BasicAuth     *BasicAuthConfig     `json:"basic_auth,omitempty"`
-	BearerAuth    *BearerAuthConfig    `json:"bearer_auth,omitempty"`
-	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth,omitempty"`
-	SignatureAuth *SignatureAuthConfig `json:"signature_auth,omitempty"`
+	ID         string         `json:"id"`
+	Name       string         `json:"name"`
+	Protocol   string         `json:"protocol"`
+	AuthType   string         `json:"auth_type"`
+	IsActive   bool           `json:"is_active"`
+	AuthConfig map[string]any `json:"auth_config,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
 }
 
 type ListUsersRequest struct {
@@ -69,4 +77,28 @@ type ListUsersRequest struct {
 	OrderBy  string `query:"order_by" validate:"omitempty,oneof=name created_at updated_at"`
 	Order    string `query:"order" validate:"omitempty,oneof=asc desc"`
 	IsActive bool   `query:"is_active" validate:"omitempty,boolean"`
+}
+
+func (s *Source) ToResponse() (*SourceResponse, error) {
+	resp := &SourceResponse{
+		ID:        s.ID,
+		Name:      s.Name,
+		Protocol:  s.Protocol,
+		AuthType:  string(s.AuthType),
+		IsActive:  s.IsActive,
+		CreatedAt: s.CreatedAt,
+		UpdatedAt: s.UpdatedAt,
+	}
+
+	if s.AuthType == AuthTypeNone || s.AuthConfig == "" {
+		return resp, nil
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(s.AuthConfig), &cfg); err != nil {
+		return nil, fmt.Errorf("unmarshal auth config: %w", err)
+	}
+	resp.AuthConfig = cfg
+
+	return resp, nil
 }

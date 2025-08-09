@@ -12,4 +12,5 @@ type Repository interface {
 	List(ctx context.Context, page, limit int) ([]*Source, *response.Pagination, error)
 	Update(ctx context.Context, user *Source) error
 	Delete(ctx context.Context, id string) error
+	GetByName(ctx context.Context, name string) (*Source, error)
 }

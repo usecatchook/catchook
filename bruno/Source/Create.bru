@@ -1,0 +1,33 @@
+meta {
+  name: Create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{apiUrl}}/sources
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+body:json {
+  {
+    "name": "{{$randomUUID}}",
+    "protocol": "http",
+    "auth_type": "signature",
+    "signature_auth": {
+      "algorithm":"sha-512",
+      "encoding": "base64",
+      "header": "authorization",
+      "secret": "secret"
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}

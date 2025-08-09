@@ -8,6 +8,7 @@ package generated
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,7 +19,7 @@ INSERT INTO deliveries (
 RETURNING id, webhook_event_id, destination_id, status, response_code, attempt, last_error, scheduled_at, created_at, updated_at
 `
 
-func (q *Queries) CreateDelivery(ctx context.Context, webhookEventID pgtype.UUID, destinationID pgtype.UUID, status DeliveryStatus, responseCode pgtype.Int4, column5 interface{}, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error) {
+func (q *Queries) CreateDelivery(ctx context.Context, webhookEventID uuid.UUID, destinationID uuid.UUID, status DeliveryStatus, responseCode pgtype.Int4, column5 interface{}, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error) {
 	row := q.db.QueryRow(ctx, createDelivery,
 		webhookEventID,
 		destinationID,
@@ -48,7 +49,7 @@ const deleteDelivery = `-- name: DeleteDelivery :exec
 DELETE FROM deliveries WHERE id = $1
 `
 
-func (q *Queries) DeleteDelivery(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteDelivery(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteDelivery, id)
 	return err
 }
@@ -57,7 +58,7 @@ const getDeliveryByID = `-- name: GetDeliveryByID :one
 SELECT id, webhook_event_id, destination_id, status, response_code, attempt, last_error, scheduled_at, created_at, updated_at FROM deliveries WHERE id = $1
 `
 
-func (q *Queries) GetDeliveryByID(ctx context.Context, id pgtype.UUID) (Delivery, error) {
+func (q *Queries) GetDeliveryByID(ctx context.Context, id uuid.UUID) (Delivery, error) {
 	row := q.db.QueryRow(ctx, getDeliveryByID, id)
 	var i Delivery
 	err := row.Scan(
@@ -79,7 +80,7 @@ const listDeliveriesByWebhookEvent = `-- name: ListDeliveriesByWebhookEvent :man
 SELECT id, webhook_event_id, destination_id, status, response_code, attempt, last_error, scheduled_at, created_at, updated_at FROM deliveries WHERE webhook_event_id = $1 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListDeliveriesByWebhookEvent(ctx context.Context, webhookEventID pgtype.UUID) ([]Delivery, error) {
+func (q *Queries) ListDeliveriesByWebhookEvent(ctx context.Context, webhookEventID uuid.UUID) ([]Delivery, error) {
 	rows, err := q.db.Query(ctx, listDeliveriesByWebhookEvent, webhookEventID)
 	if err != nil {
 		return nil, err
@@ -122,7 +123,7 @@ WHERE id = $1
 RETURNING id, webhook_event_id, destination_id, status, response_code, attempt, last_error, scheduled_at, created_at, updated_at
 `
 
-func (q *Queries) UpdateDelivery(ctx context.Context, iD pgtype.UUID, status DeliveryStatus, responseCode pgtype.Int4, attempt pgtype.Int4, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error) {
+func (q *Queries) UpdateDelivery(ctx context.Context, iD uuid.UUID, status DeliveryStatus, responseCode pgtype.Int4, attempt pgtype.Int4, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error) {
 	row := q.db.QueryRow(ctx, updateDelivery,
 		iD,
 		status,

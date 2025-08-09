@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/theotruvelot/catchook/internal/domain/source"
 	"go.uber.org/zap"
 
 	"github.com/theotruvelot/catchook/internal/config"
@@ -38,6 +39,7 @@ type Container struct {
 	AuthService   auth.Service
 	HealthService health.Service
 	SetupService  setup.Service
+	SourceService source.Service
 }
 
 // NewContainer creates and initializes all dependencies
@@ -94,13 +96,14 @@ func (c *Container) initUtilities() {
 func (c *Container) initServices() {
 	// Repositories
 	userRepo := postgres.NewUserRepository(c.DB, c.AppLogger)
+	sourceRepo := postgres.NewSourceRepository(c.DB, c.AppLogger)
 
 	// Services
 	c.UserService = service.NewUserService(userRepo, c.Cache, c.AppLogger)
 	c.AuthService = service.NewAuthService(userRepo, c.Session, c.AppLogger)
 	c.HealthService = service.NewHealthService(c.DB, c.Redis, userRepo, c.AppLogger, c.Config.Server.Version)
 	c.SetupService = service.NewSetupService(userRepo, c.AppLogger)
-
+	c.SourceService = service.NewSourceService(sourceRepo, c.AppLogger)
 	c.AppLogger.Info(context.Background(), "Services initialized")
 }
 

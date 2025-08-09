@@ -19,3 +19,9 @@ sql:
         emit_methods_with_db_argument: false
         query_parameter_limit: 32
         omit_unused_structs: true
+        overrides:
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          

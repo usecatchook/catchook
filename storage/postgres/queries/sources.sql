@@ -1,6 +1,6 @@
 -- name: CreateSource :one
 INSERT INTO sources (
-    user_id, name, description, protocol, auth_type, auth_config, is_active
+    name, user_id, description, protocol, auth_type, auth_config, is_active
 ) VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, TRUE))
 RETURNING *;
 
@@ -24,3 +24,6 @@ RETURNING *;
 
 -- name: DeleteSource :exec
 DELETE FROM sources WHERE id = $1;
+
+-- name: GetSourceByName :one
+SELECT * FROM sources where name = $1;

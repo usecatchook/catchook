@@ -8,9 +8,9 @@ CREATE TYPE delivery_status AS ENUM ('pending', 'success', 'failed', 'retrying')
 -- Table sources
 CREATE TABLE IF NOT EXISTS sources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
-    description TEXT,
+    description VARCHAR(255) NOT NULL DEFAULT '',
     protocol protocol_type NOT NULL,
     auth_type auth_type NOT NULL DEFAULT 'none',
     auth_config JSONB DEFAULT '{}'::jsonb,
@@ -20,13 +20,14 @@ CREATE TABLE IF NOT EXISTS sources (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sources_user_id ON sources(user_id);
+CREATE INDEX IF NOT EXISTS idx_sources_name ON sources(name);
 CREATE INDEX IF NOT EXISTS idx_sources_is_active ON sources(is_active);
 CREATE INDEX IF NOT EXISTS idx_sources_created_at ON sources(created_at);
 
 -- Table webhook_events
 CREATE TABLE IF NOT EXISTS webhook_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    source_id UUID REFERENCES sources(id) ON DELETE CASCADE,
+    source_id UUID NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
     payload JSONB NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb,
     applied_rule_version_id UUID,
@@ -43,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON webhook_events(creat
 -- Table destinations
 CREATE TABLE destinations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id),
+    user_id UUID NOT NULL REFERENCES users(id),
     name VARCHAR(100) NOT NULL,
     description TEXT,
     destination_type destination_type NOT NULL DEFAULT 'http',
@@ -86,8 +87,8 @@ CREATE INDEX IF NOT EXISTS idx_rules_created_at ON rules(created_at);
 -- Table deliveries
 CREATE TABLE IF NOT EXISTS deliveries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    webhook_event_id UUID REFERENCES webhook_events(id),
-    destination_id UUID REFERENCES destinations(id),
+    webhook_event_id UUID NOT NULL REFERENCES webhook_events(id),
+    destination_id UUID NOT NULL REFERENCES destinations(id),
     status delivery_status NOT NULL DEFAULT 'pending',
     response_code INTEGER,
     attempt INTEGER DEFAULT 0,

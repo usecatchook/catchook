@@ -8,6 +8,7 @@ package generated
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,7 +19,7 @@ INSERT INTO webhook_events (
 RETURNING id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at
 `
 
-func (q *Queries) CreateWebhookEvent(ctx context.Context, sourceID pgtype.UUID, payload []byte, column3 interface{}, appliedRuleVersionID pgtype.UUID, status WebhookStatus, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
+func (q *Queries) CreateWebhookEvent(ctx context.Context, sourceID uuid.UUID, payload []byte, column3 interface{}, appliedRuleVersionID pgtype.UUID, status WebhookStatus, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
 	row := q.db.QueryRow(ctx, createWebhookEvent,
 		sourceID,
 		payload,
@@ -46,7 +47,7 @@ const deleteWebhookEvent = `-- name: DeleteWebhookEvent :exec
 DELETE FROM webhook_events WHERE id = $1
 `
 
-func (q *Queries) DeleteWebhookEvent(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteWebhookEvent(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteWebhookEvent, id)
 	return err
 }
@@ -55,7 +56,7 @@ const getWebhookEventByID = `-- name: GetWebhookEventByID :one
 SELECT id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at FROM webhook_events WHERE id = $1
 `
 
-func (q *Queries) GetWebhookEventByID(ctx context.Context, id pgtype.UUID) (WebhookEvent, error) {
+func (q *Queries) GetWebhookEventByID(ctx context.Context, id uuid.UUID) (WebhookEvent, error) {
 	row := q.db.QueryRow(ctx, getWebhookEventByID, id)
 	var i WebhookEvent
 	err := row.Scan(
@@ -78,7 +79,7 @@ WHERE source_id = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListWebhookEventsBySource(ctx context.Context, sourceID pgtype.UUID) ([]WebhookEvent, error) {
+func (q *Queries) ListWebhookEventsBySource(ctx context.Context, sourceID uuid.UUID) ([]WebhookEvent, error) {
 	rows, err := q.db.Query(ctx, listWebhookEventsBySource, sourceID)
 	if err != nil {
 		return nil, err
@@ -114,7 +115,7 @@ WHERE source_id = $1 AND status = $2
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListWebhookEventsBySourceAndStatus(ctx context.Context, sourceID pgtype.UUID, status WebhookStatus) ([]WebhookEvent, error) {
+func (q *Queries) ListWebhookEventsBySourceAndStatus(ctx context.Context, sourceID uuid.UUID, status WebhookStatus) ([]WebhookEvent, error) {
 	rows, err := q.db.Query(ctx, listWebhookEventsBySourceAndStatus, sourceID, status)
 	if err != nil {
 		return nil, err
@@ -155,7 +156,7 @@ WHERE id = $1
 RETURNING id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at
 `
 
-func (q *Queries) UpdateWebhookEvent(ctx context.Context, iD pgtype.UUID, status WebhookStatus, metadata []byte, appliedRuleVersionID pgtype.UUID, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
+func (q *Queries) UpdateWebhookEvent(ctx context.Context, iD uuid.UUID, status WebhookStatus, metadata []byte, appliedRuleVersionID pgtype.UUID, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
 	row := q.db.QueryRow(ctx, updateWebhookEvent,
 		iD,
 		status,
