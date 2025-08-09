@@ -14,6 +14,7 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Logger   LoggerConfig
+	Tracer   TracerConfig
 }
 
 type ServerConfig struct {
@@ -57,6 +58,13 @@ type LoggerConfig struct {
 	Development bool   `env:"LOG_DEVELOPMENT" envDefault:"false"`
 	Caller      bool   `env:"LOG_CALLER" envDefault:"true"`
 	Stacktrace  bool   `env:"LOG_STACKTRACE" envDefault:"false"`
+}
+
+type TracerConfig struct {
+	Enabled     bool   `env:"TRACING_ENABLED" envDefault:"false"`
+	Endpoint    string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" envDefault:"http://localhost:4318"`
+	Insecure    bool   `env:"OTEL_EXPORTER_OTLP_INSECURE" envDefault:"true"`
+	ServiceName string `env:"OTEL_SERVICE_NAME" envDefault:"catchook-api"`
 }
 
 func Load() (*Config, error) {

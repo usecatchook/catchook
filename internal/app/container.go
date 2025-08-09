@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	"github.com/theotruvelot/catchook/internal/config"
 	"github.com/theotruvelot/catchook/internal/domain/auth"
@@ -17,6 +18,7 @@ import (
 	"github.com/theotruvelot/catchook/pkg/cache"
 	"github.com/theotruvelot/catchook/pkg/logger"
 	"github.com/theotruvelot/catchook/pkg/session"
+	"github.com/theotruvelot/catchook/pkg/tracer"
 	"github.com/theotruvelot/catchook/pkg/validator"
 	postgresdb "github.com/theotruvelot/catchook/storage/postgres"
 )
@@ -24,7 +26,7 @@ import (
 // Container handles dependency injection and initialization
 type Container struct {
 	Config    *config.Config
-	Logger    logger.Logger
+	AppLogger logger.Logger
 	DB        *pgxpool.Pool
 	Redis     *redis.Client
 	Cache     cache.Cache
@@ -39,10 +41,10 @@ type Container struct {
 }
 
 // NewContainer creates and initializes all dependencies
-func NewContainer(cfg *config.Config, logger logger.Logger) (*Container, error) {
+func NewContainer(cfg *config.Config, appLogger logger.Logger) (*Container, error) {
 	container := &Container{
-		Config: cfg,
-		Logger: logger,
+		Config:    cfg,
+		AppLogger: appLogger,
 	}
 
 	if err := container.initDatabase(); err != nil {
@@ -53,15 +55,19 @@ func NewContainer(cfg *config.Config, logger logger.Logger) (*Container, error) 
 		return nil, fmt.Errorf("failed to initialize redis: %w", err)
 	}
 
+	if err := tracer.Initialize(cfg.Tracer, appLogger); err != nil {
+		appLogger.Warn(context.Background(), "Failed to initialize tracer", zap.Error(err))
+	}
+
 	container.initUtilities()
 	container.initServices()
 
-	logger.Info(context.Background(), "Application container initialized successfully")
+	appLogger.Info(context.Background(), "Application container initialized successfully")
 	return container, nil
 }
 
 func (c *Container) initDatabase() error {
-	pool, err := postgresdb.NewConnectionPool(&c.Config.Database, c.Logger)
+	pool, err := postgresdb.NewConnectionPool(&c.Config.Database, c.AppLogger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -70,7 +76,7 @@ func (c *Container) initDatabase() error {
 }
 
 func (c *Container) initRedis() error {
-	rdb, err := cache.NewRedisClient(&c.Config.Redis, c.Logger)
+	rdb, err := cache.NewRedisClient(&c.Config.Redis, c.AppLogger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize redis: %w", err)
 	}
@@ -82,29 +88,32 @@ func (c *Container) initUtilities() {
 	c.Cache = cache.NewRedisCache(c.Redis)
 	c.Session = session.NewManager(c.Redis, cache.TTLUserSession)
 	c.Validator = validator.New()
-	c.Logger.Info(context.Background(), "Utilities initialized")
+	c.AppLogger.Info(context.Background(), "Utilities initialized")
 }
 
 func (c *Container) initServices() {
 	// Repositories
-	userRepo := postgres.NewUserRepository(c.DB, c.Logger)
+	userRepo := postgres.NewUserRepository(c.DB, c.AppLogger)
 
 	// Services
-	c.UserService = service.NewUserService(userRepo, c.Cache, c.Logger)
-	c.AuthService = service.NewAuthService(userRepo, c.Session, c.Logger)
-	c.HealthService = service.NewHealthService(c.DB, c.Redis, userRepo, c.Logger, c.Config.Server.Version)
-	c.SetupService = service.NewSetupService(userRepo, c.Logger)
+	c.UserService = service.NewUserService(userRepo, c.Cache, c.AppLogger)
+	c.AuthService = service.NewAuthService(userRepo, c.Session, c.AppLogger)
+	c.HealthService = service.NewHealthService(c.DB, c.Redis, userRepo, c.AppLogger, c.Config.Server.Version)
+	c.SetupService = service.NewSetupService(userRepo, c.AppLogger)
 
-	c.Logger.Info(context.Background(), "Services initialized")
+	c.AppLogger.Info(context.Background(), "Services initialized")
 }
 
 // Close gracefully shuts down all connections
 func (c *Container) Close() error {
 	ctx := context.Background()
-	c.Logger.Info(ctx, "Closing application connections...")
+	c.AppLogger.Info(ctx, "Closing application connections...")
 
-	cache.CloseRedisClient(c.Redis, c.Logger)
-	postgresdb.ClosePool(c.DB, c.Logger)
+	cache.CloseRedisClient(c.Redis, c.AppLogger)
+	postgresdb.ClosePool(c.DB, c.AppLogger)
+
+	// Close tracer provider
+	_ = tracer.Close(ctx)
 
 	return nil
 }

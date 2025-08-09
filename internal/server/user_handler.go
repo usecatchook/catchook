@@ -2,13 +2,14 @@ package server
 
 import (
 	"errors"
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/response"
 	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
 	"github.com/theotruvelot/catchook/storage/postgres/generated"
-	"strconv"
 )
 
 func (s *Server) handleGetMe(c *fiber.Ctx) error {
@@ -28,10 +29,9 @@ func (s *Server) handleGetMe(c *fiber.Ctx) error {
 
 func (s *Server) handleGetProfile(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
-	userIDStr := c.Params("id")
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		return response.BadRequest(c, "invalid user id", nil)
+	userID := c.Params("id")
+	if userID == "" {
+		return response.BadRequest(c, "user_id is required", nil)
 	}
 	userResp, err := s.container.UserService.GetByID(ctx, userID)
 	if err != nil {
@@ -42,10 +42,9 @@ func (s *Server) handleGetProfile(c *fiber.Ctx) error {
 
 func (s *Server) handleUpdateProfile(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
-	userIDStr := c.Params("id")
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		return response.BadRequest(c, "invalid user id", nil)
+	userID := c.Params("id")
+	if userID == "" {
+		return response.BadRequest(c, "user_id is required", nil)
 	}
 
 	currentUser := middleware.GetUser(c)

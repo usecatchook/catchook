@@ -1,6 +1,5 @@
--- 001_users_up.sql
+-- 000001_users_up.sql
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 
 --User Roles enum
 CREATE TYPE user_role AS ENUM (
@@ -11,7 +10,7 @@ CREATE TYPE user_role AS ENUM (
 
 -- Table users
 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) NOT NULL UNIQUE,
     role user_role NOT NULL DEFAULT 'viewer',
     password_hash VARCHAR(255) NOT NULL,

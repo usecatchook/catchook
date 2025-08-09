@@ -13,20 +13,18 @@ import (
 	"github.com/theotruvelot/catchook/pkg/logger"
 )
 
-// Server handles HTTP server configuration and setup
 type Server struct {
 	app       *fiber.App
 	container *app.Container
 	config    *config.Config
-	logger    logger.Logger
+	appLogger logger.Logger
 }
 
-// NewServer creates a new HTTP server with all configurations
 func NewServer(container *app.Container) *Server {
 	server := &Server{
 		container: container,
 		config:    container.Config,
-		logger:    container.Logger,
+		appLogger: container.AppLogger,
 	}
 
 	server.app = server.createFiberApp()
@@ -36,7 +34,6 @@ func NewServer(container *app.Container) *Server {
 	return server
 }
 
-// createFiberApp creates and configures the Fiber app
 func (s *Server) createFiberApp() *fiber.App {
 	return fiber.New(fiber.Config{
 		ServerHeader:          "Catchook API",
@@ -52,7 +49,6 @@ func (s *Server) createFiberApp() *fiber.App {
 	})
 }
 
-// errorHandler handles all HTTP errors
 func (s *Server) errorHandler(ctx *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	message := "Internal Server Error"
@@ -62,7 +58,7 @@ func (s *Server) errorHandler(ctx *fiber.Ctx, err error) error {
 		message = e.Message
 	}
 
-	s.logger.Error(middleware.GetContextWithRequestID(ctx), "HTTP error",
+	s.appLogger.Error(middleware.GetContextWithRequestID(ctx), "HTTP error",
 		logger.String("method", ctx.Method()),
 		logger.String("path", ctx.Path()),
 		logger.String("ip", ctx.IP()),
@@ -76,21 +72,14 @@ func (s *Server) errorHandler(ctx *fiber.Ctx, err error) error {
 	})
 }
 
-// Start starts the HTTP server
 func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Server.Host, s.config.Server.Port)
-	s.logger.Info(context.Background(), "Starting HTTP server", logger.String("address", addr))
+	s.appLogger.Info(context.Background(), "Starting HTTP server", logger.String("address", addr))
 
 	return s.app.Listen(addr)
 }
 
-// Shutdown gracefully shuts down the server
 func (s *Server) Shutdown() error {
-	s.logger.Info(context.Background(), "Shutting down HTTP server...")
+	s.appLogger.Info(context.Background(), "Shutting down HTTP server...")
 	return s.app.Shutdown()
-}
-
-// App returns the Fiber app instance (for testing)
-func (s *Server) App() *fiber.App {
-	return s.app
 }

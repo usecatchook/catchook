@@ -11,6 +11,227 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuthType string
+
+const (
+	AuthTypeNone      AuthType = "none"
+	AuthTypeBasic     AuthType = "basic"
+	AuthTypeBearer    AuthType = "bearer"
+	AuthTypeApikey    AuthType = "apikey"
+	AuthTypeSignature AuthType = "signature"
+)
+
+func (e *AuthType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AuthType(s)
+	case string:
+		*e = AuthType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AuthType: %T", src)
+	}
+	return nil
+}
+
+type NullAuthType struct {
+	AuthType AuthType `json:"auth_type"`
+	Valid    bool     `json:"valid"` // Valid is true if AuthType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAuthType) Scan(value interface{}) error {
+	if value == nil {
+		ns.AuthType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AuthType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAuthType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AuthType), nil
+}
+
+type DeliveryStatus string
+
+const (
+	DeliveryStatusPending  DeliveryStatus = "pending"
+	DeliveryStatusSuccess  DeliveryStatus = "success"
+	DeliveryStatusFailed   DeliveryStatus = "failed"
+	DeliveryStatusRetrying DeliveryStatus = "retrying"
+)
+
+func (e *DeliveryStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeliveryStatus(s)
+	case string:
+		*e = DeliveryStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeliveryStatus: %T", src)
+	}
+	return nil
+}
+
+type NullDeliveryStatus struct {
+	DeliveryStatus DeliveryStatus `json:"delivery_status"`
+	Valid          bool           `json:"valid"` // Valid is true if DeliveryStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeliveryStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeliveryStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeliveryStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeliveryStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeliveryStatus), nil
+}
+
+type DestinationType string
+
+const (
+	DestinationTypeHttp     DestinationType = "http"
+	DestinationTypeRabbitmq DestinationType = "rabbitmq"
+	DestinationTypeDatabase DestinationType = "database"
+	DestinationTypeFile     DestinationType = "file"
+	DestinationTypeQueue    DestinationType = "queue"
+	DestinationTypeCli      DestinationType = "cli"
+)
+
+func (e *DestinationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DestinationType(s)
+	case string:
+		*e = DestinationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DestinationType: %T", src)
+	}
+	return nil
+}
+
+type NullDestinationType struct {
+	DestinationType DestinationType `json:"destination_type"`
+	Valid           bool            `json:"valid"` // Valid is true if DestinationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDestinationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.DestinationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DestinationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDestinationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DestinationType), nil
+}
+
+type ProtocolType string
+
+const (
+	ProtocolTypeHttp      ProtocolType = "http"
+	ProtocolTypeGrpc      ProtocolType = "grpc"
+	ProtocolTypeMqtt      ProtocolType = "mqtt"
+	ProtocolTypeWebsocket ProtocolType = "websocket"
+)
+
+func (e *ProtocolType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProtocolType(s)
+	case string:
+		*e = ProtocolType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProtocolType: %T", src)
+	}
+	return nil
+}
+
+type NullProtocolType struct {
+	ProtocolType ProtocolType `json:"protocol_type"`
+	Valid        bool         `json:"valid"` // Valid is true if ProtocolType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProtocolType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProtocolType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProtocolType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProtocolType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProtocolType), nil
+}
+
+type RuleMode string
+
+const (
+	RuleModeNocode RuleMode = "nocode"
+	RuleModeCode   RuleMode = "code"
+)
+
+func (e *RuleMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = RuleMode(s)
+	case string:
+		*e = RuleMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for RuleMode: %T", src)
+	}
+	return nil
+}
+
+type NullRuleMode struct {
+	RuleMode RuleMode `json:"rule_mode"`
+	Valid    bool     `json:"valid"` // Valid is true if RuleMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullRuleMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.RuleMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.RuleMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullRuleMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.RuleMode), nil
+}
+
 type UserRole string
 
 const (
@@ -54,8 +275,108 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type WebhookStatus string
+
+const (
+	WebhookStatusPending   WebhookStatus = "pending"
+	WebhookStatusFiltered  WebhookStatus = "filtered"
+	WebhookStatusDelayed   WebhookStatus = "delayed"
+	WebhookStatusDelivered WebhookStatus = "delivered"
+	WebhookStatusFailed    WebhookStatus = "failed"
+)
+
+func (e *WebhookStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = WebhookStatus(s)
+	case string:
+		*e = WebhookStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for WebhookStatus: %T", src)
+	}
+	return nil
+}
+
+type NullWebhookStatus struct {
+	WebhookStatus WebhookStatus `json:"webhook_status"`
+	Valid         bool          `json:"valid"` // Valid is true if WebhookStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullWebhookStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.WebhookStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.WebhookStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullWebhookStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.WebhookStatus), nil
+}
+
+type Delivery struct {
+	ID             pgtype.UUID        `db:"id" json:"id"`
+	WebhookEventID pgtype.UUID        `db:"webhook_event_id" json:"webhook_event_id"`
+	DestinationID  pgtype.UUID        `db:"destination_id" json:"destination_id"`
+	Status         DeliveryStatus     `db:"status" json:"status"`
+	ResponseCode   pgtype.Int4        `db:"response_code" json:"response_code"`
+	Attempt        pgtype.Int4        `db:"attempt" json:"attempt"`
+	LastError      pgtype.Text        `db:"last_error" json:"last_error"`
+	ScheduledAt    pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type Destination struct {
+	ID              pgtype.UUID        `db:"id" json:"id"`
+	UserID          pgtype.UUID        `db:"user_id" json:"user_id"`
+	Name            string             `db:"name" json:"name"`
+	Description     pgtype.Text        `db:"description" json:"description"`
+	DestinationType DestinationType    `db:"destination_type" json:"destination_type"`
+	Config          []byte             `db:"config" json:"config"`
+	IsActive        pgtype.Bool        `db:"is_active" json:"is_active"`
+	DelaySeconds    pgtype.Int4        `db:"delay_seconds" json:"delay_seconds"`
+	RetryAttempts   pgtype.Int4        `db:"retry_attempts" json:"retry_attempts"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type Rule struct {
+	ID            pgtype.UUID        `db:"id" json:"id"`
+	UserID        pgtype.UUID        `db:"user_id" json:"user_id"`
+	SourceID      pgtype.UUID        `db:"source_id" json:"source_id"`
+	DestinationID pgtype.UUID        `db:"destination_id" json:"destination_id"`
+	Name          string             `db:"name" json:"name"`
+	Version       int32              `db:"version" json:"version"`
+	IsActive      bool               `db:"is_active" json:"is_active"`
+	Mode          RuleMode           `db:"mode" json:"mode"`
+	Config        []byte             `db:"config" json:"config"`
+	Code          pgtype.Text        `db:"code" json:"code"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type Source struct {
+	ID          pgtype.UUID        `db:"id" json:"id"`
+	UserID      pgtype.UUID        `db:"user_id" json:"user_id"`
+	Name        string             `db:"name" json:"name"`
+	Description pgtype.Text        `db:"description" json:"description"`
+	Protocol    ProtocolType       `db:"protocol" json:"protocol"`
+	AuthType    AuthType           `db:"auth_type" json:"auth_type"`
+	AuthConfig  []byte             `db:"auth_config" json:"auth_config"`
+	IsActive    pgtype.Bool        `db:"is_active" json:"is_active"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type User struct {
-	ID           int32              `db:"id" json:"id"`
+	ID           pgtype.UUID        `db:"id" json:"id"`
 	Email        string             `db:"email" json:"email"`
 	Role         UserRole           `db:"role" json:"role"`
 	PasswordHash string             `db:"password_hash" json:"password_hash"`
@@ -64,4 +385,16 @@ type User struct {
 	IsActive     bool               `db:"is_active" json:"is_active"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type WebhookEvent struct {
+	ID                   pgtype.UUID        `db:"id" json:"id"`
+	SourceID             pgtype.UUID        `db:"source_id" json:"source_id"`
+	Payload              []byte             `db:"payload" json:"payload"`
+	Metadata             []byte             `db:"metadata" json:"metadata"`
+	AppliedRuleVersionID pgtype.UUID        `db:"applied_rule_version_id" json:"applied_rule_version_id"`
+	Status               WebhookStatus      `db:"status" json:"status"`
+	ScheduledAt          pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
+	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }

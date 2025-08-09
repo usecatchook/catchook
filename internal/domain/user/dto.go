@@ -27,7 +27,7 @@ type ChangePasswordRequest struct {
 }
 
 type UserResponse struct {
-	ID        int                `json:"id"`
+	ID        string             `json:"id"`
 	Email     string             `json:"email"`
 	Role      generated.UserRole `json:"role"`
 	FirstName string             `json:"first_name"`

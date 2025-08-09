@@ -9,9 +9,9 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, req CreateRequest) (*User, error)
-	GetByID(ctx context.Context, id int) (*User, error)
+	GetByID(ctx context.Context, id string) (*User, error)
 	List(ctx context.Context, page, limit int) ([]*User, *response.Pagination, error)
-	Update(ctx context.Context, id int, req UpdateRequest, currentUser *middleware.User) (*User, error)
-	Delete(ctx context.Context, id int) error
-	ChangePassword(ctx context.Context, id int, req ChangePasswordRequest) error
+	Update(ctx context.Context, id string, req UpdateRequest, currentUser *middleware.User) (*User, error)
+	Delete(ctx context.Context, id string) error
+	ChangePassword(ctx context.Context, id string, req ChangePasswordRequest) error
 }

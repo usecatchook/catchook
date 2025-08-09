@@ -57,6 +57,6 @@ func (s setupService) CreateAdminUser(ctx context.Context, req setup.CreateAdmin
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	s.logger.Info(ctx, "Admin user created successfully", logger.Int("user_id", newUser.ID), logger.String("email", newUser.Email))
+	s.logger.Info(ctx, "Admin user created successfully", logger.String("user_id", newUser.ID), logger.String("email", newUser.Email))
 	return nil
 }

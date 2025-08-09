@@ -16,7 +16,7 @@ headers {
 
 body:json {
   {
-    "email": "john.doe@example.com",
+    "email": "admin@catchook.com",
     "password": "SecurePass123!"
   }
 }
@@ -36,7 +36,7 @@ tests {
     const data = res.getBody().data;
     expect(data).to.have.property('user');
     expect(data).to.have.property('session');
-
+  
     expect(data.session).to.have.property('session_id');
   });
   

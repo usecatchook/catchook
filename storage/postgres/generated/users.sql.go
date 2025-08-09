@@ -7,6 +7,8 @@ package generated
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const checkEmailExists = `-- name: CheckEmailExists :one
@@ -80,7 +82,7 @@ SET
 WHERE id = $1
 `
 
-func (q *Queries) DeactivateUser(ctx context.Context, id int32) error {
+func (q *Queries) DeactivateUser(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deactivateUser, id)
 	return err
 }
@@ -90,7 +92,7 @@ DELETE FROM users
 WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
+func (q *Queries) DeleteUser(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
 }
@@ -144,7 +146,7 @@ SELECT id, email, role, password_hash, first_name, last_name, is_active, created
 WHERE id = $1 AND is_active = true
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(
@@ -209,7 +211,7 @@ WHERE id = $1 AND is_active = true
 RETURNING id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at
 `
 
-func (q *Queries) UpdateUser(ctx context.Context, iD int32, role UserRole, firstName string, lastName string) (User, error) {
+func (q *Queries) UpdateUser(ctx context.Context, iD pgtype.UUID, role UserRole, firstName string, lastName string) (User, error) {
 	row := q.db.QueryRow(ctx, updateUser,
 		iD,
 		role,
@@ -240,7 +242,7 @@ WHERE id = $1 AND is_active = true
 RETURNING id, email, role, password_hash, first_name, last_name, is_active, created_at, updated_at
 `
 
-func (q *Queries) UpdateUserPassword(ctx context.Context, iD int32, passwordHash string) (User, error) {
+func (q *Queries) UpdateUserPassword(ctx context.Context, iD pgtype.UUID, passwordHash string) (User, error) {
 	row := q.db.QueryRow(ctx, updateUserPassword, iD, passwordHash)
 	var i User
 	err := row.Scan(

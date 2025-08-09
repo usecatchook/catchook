@@ -3,6 +3,7 @@ package server
 import (
 	"time"
 
+	otelfiber "github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -13,15 +14,14 @@ import (
 	"github.com/theotruvelot/catchook/internal/middleware"
 )
 
-// setupMiddlewares configures all middleware
 func (s *Server) setupMiddlewares() {
-	// Recovery middleware
 	s.app.Use(recover.New(recover.Config{
 		EnableStackTrace: s.config.Logger.Development,
 	}))
 
-	// Request logging
-	s.app.Use(middleware.RequestLogging(s.logger))
+	s.app.Use(otelfiber.Middleware())
+
+	s.app.Use(middleware.RequestLogging(s.appLogger))
 
 	// Security headers
 	s.app.Use(helmet.New())

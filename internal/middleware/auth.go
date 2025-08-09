@@ -11,7 +11,7 @@ import (
 const UserContextKey = "user"
 
 type User struct {
-	ID   int                `json:"id"`
+	ID   string             `json:"id"`
 	Role generated.UserRole `json:"role"`
 }
 
@@ -67,10 +67,10 @@ func GetUser(c *fiber.Ctx) *User {
 	return nil
 }
 
-func GetUserID(c *fiber.Ctx) (int, bool) {
+func GetUserID(c *fiber.Ctx) (string, bool) {
 	user := GetUser(c)
 	if user == nil {
-		return 0, false
+		return "", false
 	}
 	return user.ID, true
 }

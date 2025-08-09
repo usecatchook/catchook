@@ -15,7 +15,7 @@ import (
 )
 
 type Manager interface {
-	CreateSession(ctx context.Context, userID int, role string) (string, error)
+	CreateSession(ctx context.Context, userID string, role string) (string, error)
 	GetSession(ctx context.Context, sessionID string) (*Session, error)
 	DeleteSession(ctx context.Context, sessionID string) error
 	RefreshSession(ctx context.Context, sessionID string) error
@@ -24,7 +24,7 @@ type Manager interface {
 
 type Session struct {
 	ID        string             `json:"id"`
-	UserID    int                `json:"user_id"`
+	UserID    string             `json:"user_id"`
 	Role      generated.UserRole `json:"role"`
 	CreatedAt time.Time          `json:"created_at"`
 	ExpiresAt time.Time          `json:"expires_at"`
@@ -46,7 +46,7 @@ func (s *sessionManager) GetKey(sessionID string) string {
 	return fmt.Sprintf(cache.KeyUserSession, sessionID)
 }
 
-func (s *sessionManager) CreateSession(ctx context.Context, userID int, role string) (string, error) {
+func (s *sessionManager) CreateSession(ctx context.Context, userID string, role string) (string, error) {
 	sessionID, err := s.generateSessionID()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate session ID: %w", err)

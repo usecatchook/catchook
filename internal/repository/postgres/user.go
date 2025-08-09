@@ -10,6 +10,7 @@ import (
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/pkg/logger"
 	"github.com/theotruvelot/catchook/pkg/response"
+	"github.com/theotruvelot/catchook/pkg/utils"
 	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
@@ -49,45 +50,54 @@ func (r *userRepository) Create(ctx context.Context, user *user.User) error {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	user.ID = int(result.ID)
+	user.ID = result.ID.String()
 	user.CreatedAt = result.CreatedAt.Time
 	user.UpdatedAt = result.UpdatedAt.Time
 
 	r.logger.Debug(ctx, "User created successfully in database",
-		logger.Int("user_id", user.ID),
+		logger.String("user_id", user.ID),
 		logger.String("email", user.Email),
 	)
 
 	return nil
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id int) (*user.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id string) (*user.User, error) {
 	r.logger.Debug(ctx, "Getting user by ID from database",
-		logger.Int("user_id", id),
+		logger.String("user_id", id),
 	)
 
-	result, err := r.queries.GetUserByID(ctx, int32(id))
+	pgUUID, err := utils.ParseUUID(id)
+	if err != nil {
+		r.logger.Error(ctx, "Invalid UUID format",
+			logger.String("user_id", id),
+			logger.Error(err),
+		)
+		return nil, fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	result, err := r.queries.GetUserByID(ctx, pgUUID)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found in database",
-				logger.Int("user_id", id),
+				logger.String("user_id", id),
 			)
 			return nil, fmt.Errorf("user not found")
 		}
 		r.logger.Error(ctx, "Failed to get user from database",
-			logger.Int("user_id", id),
+			logger.String("user_id", id),
 			logger.Error(err),
 		)
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	r.logger.Debug(ctx, "User found in database",
-		logger.Int("user_id", id),
+		logger.String("user_id", id),
 		logger.String("email", result.Email),
 	)
 
 	return &user.User{
-		ID:        int(result.ID),
+		ID:        result.ID.String(),
 		Email:     result.Email,
 		Role:      result.Role,
 		Password:  result.PasswordHash,
@@ -120,12 +130,12 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.Us
 	}
 
 	r.logger.Debug(ctx, "User found in database",
-		logger.Int("user_id", int(result.ID)),
+		logger.String("user_id", result.ID.String()),
 		logger.String("email", email),
 	)
 
 	return &user.User{
-		ID:        int(result.ID),
+		ID:        result.ID.String(),
 		Email:     result.Email,
 		Role:      result.Role,
 		Password:  result.PasswordHash,
@@ -139,12 +149,21 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*user.Us
 
 func (r *userRepository) Update(ctx context.Context, user *user.User) error {
 	r.logger.Debug(ctx, "Updating user in database",
-		logger.Int("user_id", user.ID),
+		logger.String("user_id", user.ID),
 		logger.String("email", user.Email),
 	)
 
+	pgUUID, err := utils.ParseUUID(user.ID)
+	if err != nil {
+		r.logger.Error(ctx, "Invalid UUID format for update",
+			logger.String("user_id", user.ID),
+			logger.Error(err),
+		)
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+
 	result, err := r.queries.UpdateUser(ctx,
-		int32(user.ID),
+		pgUUID,
 		user.Role,
 		user.FirstName,
 		user.LastName,
@@ -153,12 +172,12 @@ func (r *userRepository) Update(ctx context.Context, user *user.User) error {
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found for update",
-				logger.Int("user_id", user.ID),
+				logger.String("user_id", user.ID),
 			)
 			return fmt.Errorf("user not found")
 		}
 		r.logger.Error(ctx, "Failed to update user in database",
-			logger.Int("user_id", user.ID),
+			logger.String("user_id", user.ID),
 			logger.Error(err),
 		)
 		return fmt.Errorf("failed to update user: %w", err)
@@ -167,35 +186,44 @@ func (r *userRepository) Update(ctx context.Context, user *user.User) error {
 	user.UpdatedAt = result.UpdatedAt.Time
 
 	r.logger.Debug(ctx, "User updated successfully in database",
-		logger.Int("user_id", user.ID),
+		logger.String("user_id", user.ID),
 		logger.String("email", user.Email),
 	)
 
 	return nil
 }
 
-func (r *userRepository) Delete(ctx context.Context, id int) error {
+func (r *userRepository) Delete(ctx context.Context, id string) error {
 	r.logger.Debug(ctx, "Deleting user from database",
-		logger.Int("user_id", id),
+		logger.String("user_id", id),
 	)
 
-	err := r.queries.DeleteUser(ctx, int32(id))
+	pgUUID, err := utils.ParseUUID(id)
+	if err != nil {
+		r.logger.Error(ctx, "Invalid UUID format for deletion",
+			logger.String("user_id", id),
+			logger.Error(err),
+		)
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	err = r.queries.DeleteUser(ctx, pgUUID)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found for deletion",
-				logger.Int("user_id", id),
+				logger.String("user_id", id),
 			)
 			return fmt.Errorf("user not found")
 		}
 		r.logger.Error(ctx, "Failed to delete user from database",
-			logger.Int("user_id", id),
+			logger.String("user_id", id),
 			logger.Error(err),
 		)
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
 	r.logger.Debug(ctx, "User deleted successfully from database",
-		logger.Int("user_id", id),
+		logger.String("user_id", id),
 	)
 
 	return nil
@@ -223,28 +251,37 @@ func (r *userRepository) EmailExists(ctx context.Context, email string) (bool, e
 	return result, nil
 }
 
-func (r *userRepository) UpdatePassword(ctx context.Context, userID int, hashedPassword string) error {
+func (r *userRepository) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
 	r.logger.Debug(ctx, "Updating user password in database",
-		logger.Int("user_id", userID),
+		logger.String("user_id", userID),
 	)
 
-	_, err := r.queries.UpdateUserPassword(ctx, int32(userID), hashedPassword)
+	pgUUID, err := utils.ParseUUID(userID)
+	if err != nil {
+		r.logger.Error(ctx, "Invalid UUID format for password update",
+			logger.String("user_id", userID),
+			logger.Error(err),
+		)
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	_, err = r.queries.UpdateUserPassword(ctx, pgUUID, hashedPassword)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			r.logger.Debug(ctx, "User not found for password update",
-				logger.Int("user_id", userID),
+				logger.String("user_id", userID),
 			)
 			return fmt.Errorf("user not found")
 		}
 		r.logger.Error(ctx, "Failed to update user password in database",
-			logger.Int("user_id", userID),
+			logger.String("user_id", userID),
 			logger.Error(err),
 		)
 		return fmt.Errorf("failed to update user password: %w", err)
 	}
 
 	r.logger.Debug(ctx, "User password updated successfully in database",
-		logger.Int("user_id", userID),
+		logger.String("user_id", userID),
 	)
 
 	return nil
@@ -273,7 +310,6 @@ func (r *userRepository) List(ctx context.Context, page, limit int) ([]*user.Use
 		logger.Int("page", page),
 		logger.Int("limit", limit))
 
-	// Validation des paramètres de pagination
 	if page < 1 {
 		page = 1
 	}
@@ -284,17 +320,14 @@ func (r *userRepository) List(ctx context.Context, page, limit int) ([]*user.Use
 		limit = 100
 	}
 
-	// Calcul de l'offset
 	offset := (page - 1) * limit
 
-	// Récupération du nombre total d'utilisateurs
 	total, err := r.CountUsers(ctx)
 	if err != nil {
 		r.logger.Error(ctx, "Failed to count users for pagination", logger.Error(err))
 		return nil, nil, fmt.Errorf("failed to count users: %w", err)
 	}
 
-	// Récupération des utilisateurs avec pagination
 	results, err := r.queries.ListUsers(ctx, int32(limit), int32(offset))
 	if err != nil {
 		r.logger.Error(ctx, "Failed to list users from database", logger.Error(err))
@@ -304,7 +337,7 @@ func (r *userRepository) List(ctx context.Context, page, limit int) ([]*user.Use
 	users := make([]*user.User, len(results))
 	for i, result := range results {
 		users[i] = &user.User{
-			ID:        int(result.ID),
+			ID:        result.ID.String(),
 			Email:     result.Email,
 			Role:      result.Role,
 			Password:  result.PasswordHash,
@@ -316,7 +349,6 @@ func (r *userRepository) List(ctx context.Context, page, limit int) ([]*user.Use
 		}
 	}
 
-	// Calcul des métadonnées de pagination
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
 	if totalPages < 1 {
 		totalPages = 1

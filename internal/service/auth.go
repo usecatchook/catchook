@@ -41,7 +41,7 @@ func (s *authService) Login(ctx context.Context, req auth.LoginRequest) (*auth.A
 	if !user.IsActive {
 		s.logger.Warn(ctx, "Login failed - user inactive",
 			logger.String("email", req.Email),
-			logger.Int("user_id", user.ID),
+			logger.String("user_id", user.ID),
 		)
 		return nil, auth.ErrUserInactive
 	}
@@ -50,7 +50,7 @@ func (s *authService) Login(ctx context.Context, req auth.LoginRequest) (*auth.A
 	if err != nil || !valid {
 		s.logger.Warn(ctx, "Login failed - invalid password",
 			logger.String("email", req.Email),
-			logger.Int("user_id", user.ID),
+			logger.String("user_id", user.ID),
 		)
 		return nil, auth.ErrInvalidCredentials
 	}
@@ -58,14 +58,14 @@ func (s *authService) Login(ctx context.Context, req auth.LoginRequest) (*auth.A
 	sessionID, err := s.sessionManager.CreateSession(ctx, user.ID, string(user.Role))
 	if err != nil {
 		s.logger.Error(ctx, "Failed to create session",
-			logger.Int("user_id", user.ID),
+			logger.String("user_id", user.ID),
 			logger.Error(err),
 		)
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
 	s.logger.Info(ctx, "User logged in successfully",
-		logger.Int("user_id", user.ID),
+		logger.String("user_id", user.ID),
 		logger.String("email", user.Email),
 	)
 
@@ -89,14 +89,14 @@ func (s *authService) RefreshSession(ctx context.Context, sessionID string) (*au
 	user, err := s.userRepo.GetByID(ctx, sess.UserID)
 	if err != nil {
 		s.logger.Warn(ctx, "User not found during session refresh",
-			logger.Int("user_id", sess.UserID),
+			logger.String("user_id", sess.UserID),
 			logger.Error(err))
 		return nil, auth.ErrInvalidToken
 	}
 
 	if !user.IsActive {
 		s.logger.Warn(ctx, "Session refresh failed - user inactive",
-			logger.Int("user_id", user.ID),
+			logger.String("user_id", user.ID),
 		)
 		return nil, auth.ErrUserInactive
 	}
@@ -104,14 +104,14 @@ func (s *authService) RefreshSession(ctx context.Context, sessionID string) (*au
 	err = s.sessionManager.RefreshSession(ctx, sessionID)
 	if err != nil {
 		s.logger.Error(ctx, "Failed to refresh session",
-			logger.Int("user_id", user.ID),
+			logger.String("user_id", user.ID),
 			logger.Error(err),
 		)
 		return nil, fmt.Errorf("failed to refresh session: %w", err)
 	}
 
 	s.logger.Info(ctx, "Session refreshed successfully",
-		logger.Int("user_id", user.ID),
+		logger.String("user_id", user.ID),
 		logger.String("role", string(user.Role)))
 
 	return &auth.SessionResponse{

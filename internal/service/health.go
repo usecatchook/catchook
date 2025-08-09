@@ -8,6 +8,8 @@ import (
 	"github.com/theotruvelot/catchook/internal/domain/health"
 	"github.com/theotruvelot/catchook/internal/domain/user"
 	"github.com/theotruvelot/catchook/pkg/logger"
+	"github.com/theotruvelot/catchook/pkg/tracer"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type healthService struct {
@@ -35,27 +37,34 @@ func NewHealthService(
 }
 
 func (s *healthService) Check(ctx context.Context) (*health.StatusResponse, error) {
+	ctx, span := tracer.StartSpan(ctx, "health.service.check")
+	defer span.End()
+
 	services := make(map[string]string)
 
-	// Check database
 	services["database"] = "ok"
-	if err := s.db.Ping(ctx); err != nil {
+	if err := tracer.WithSpan(ctx, "health.db.ping", func(inner context.Context) error { return s.db.Ping(inner) }); err != nil {
 		services["database"] = "error"
 		s.logger.Error(ctx, "Database health check failed", logger.Error(err))
+		span.RecordError(err)
 	}
 
-	// Check Redis
 	services["redis"] = "ok"
-	if err := s.redis.Ping(ctx).Err(); err != nil {
+	if err := tracer.WithSpan(ctx, "health.redis.ping", func(inner context.Context) error { return s.redis.Ping(inner).Err() }); err != nil {
 		services["redis"] = "error"
 		s.logger.Error(ctx, "Redis health check failed", logger.Error(err))
+		span.RecordError(err)
 	}
 
-	// Check if first time setup
 	isFirstTime := false
-	count, err := s.userRepo.CountUsers(ctx)
-	if err != nil {
+	var count int64
+	if err := tracer.WithSpan(ctx, "health.service.count_users", func(inner context.Context) error {
+		var err error
+		count, err = s.userRepo.CountUsers(inner)
+		return err
+	}); err != nil {
 		s.logger.Error(ctx, "Failed to count users during setup check", logger.Error(err))
+		span.RecordError(err)
 	} else {
 		isFirstTime = count == 0
 	}
@@ -70,11 +79,18 @@ func (s *healthService) Check(ctx context.Context) (*health.StatusResponse, erro
 		status = "unhealthy"
 	}
 
-	return &health.StatusResponse{
+	resp := &health.StatusResponse{
 		Status:         status,
 		Version:        s.version,
 		FirstTimeSetup: isFirstTime,
 		Message:        message,
 		Services:       services,
-	}, nil
+	}
+
+	span.SetAttributes(
+		attribute.String("health.status", status),
+		attribute.Bool("health.first_time_setup", isFirstTime),
+	)
+
+	return resp, nil
 }

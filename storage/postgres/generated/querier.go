@@ -6,20 +6,49 @@ package generated
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CreateDelivery(ctx context.Context, webhookEventID pgtype.UUID, destinationID pgtype.UUID, status DeliveryStatus, responseCode pgtype.Int4, column5 interface{}, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error)
+	CreateDestination(ctx context.Context, userID pgtype.UUID, name string, description pgtype.Text, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error)
+	CreateRule(ctx context.Context, userID pgtype.UUID, sourceID pgtype.UUID, destinationID pgtype.UUID, name string, column5 interface{}, column6 interface{}, mode RuleMode, column8 interface{}, code pgtype.Text) (Rule, error)
+	CreateSource(ctx context.Context, userID pgtype.UUID, name string, description pgtype.Text, protocol ProtocolType, authType AuthType, authConfig []byte, column7 interface{}) (Source, error)
 	CreateUser(ctx context.Context, email string, role UserRole, passwordHash string, firstName string, lastName string, isActive bool) (User, error)
-	DeactivateUser(ctx context.Context, id int32) error
-	DeleteUser(ctx context.Context, id int32) error
+	CreateWebhookEvent(ctx context.Context, sourceID pgtype.UUID, payload []byte, column3 interface{}, appliedRuleVersionID pgtype.UUID, status WebhookStatus, scheduledAt pgtype.Timestamptz) (WebhookEvent, error)
+	DeactivateUser(ctx context.Context, id pgtype.UUID) error
+	DeleteDelivery(ctx context.Context, id pgtype.UUID) error
+	DeleteDestination(ctx context.Context, id pgtype.UUID) error
+	DeleteRule(ctx context.Context, id pgtype.UUID) error
+	DeleteSource(ctx context.Context, id pgtype.UUID) error
+	DeleteUser(ctx context.Context, id pgtype.UUID) error
+	DeleteWebhookEvent(ctx context.Context, id pgtype.UUID) error
+	GetDeliveryByID(ctx context.Context, id pgtype.UUID) (Delivery, error)
+	GetDestinationByID(ctx context.Context, id pgtype.UUID) (Destination, error)
+	GetRuleByID(ctx context.Context, id pgtype.UUID) (Rule, error)
+	GetSourceByID(ctx context.Context, id pgtype.UUID) (Source, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByEmailWithPassword(ctx context.Context, email string) (User, error)
-	GetUserByID(ctx context.Context, id int32) (User, error)
+	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
+	GetWebhookEventByID(ctx context.Context, id pgtype.UUID) (WebhookEvent, error)
+	ListActiveDestinationsByUser(ctx context.Context, userID pgtype.UUID) ([]Destination, error)
+	ListActiveRulesByUser(ctx context.Context, userID pgtype.UUID) ([]Rule, error)
+	ListDeliveriesByWebhookEvent(ctx context.Context, webhookEventID pgtype.UUID) ([]Delivery, error)
+	ListRulesBySourceAndDestination(ctx context.Context, sourceID pgtype.UUID, destinationID pgtype.UUID) ([]Rule, error)
+	ListSourcesByUser(ctx context.Context, userID pgtype.UUID) ([]Source, error)
 	ListUsers(ctx context.Context, limit int32, offset int32) ([]User, error)
-	UpdateUser(ctx context.Context, iD int32, role UserRole, firstName string, lastName string) (User, error)
-	UpdateUserPassword(ctx context.Context, iD int32, passwordHash string) (User, error)
+	ListWebhookEventsBySource(ctx context.Context, sourceID pgtype.UUID) ([]WebhookEvent, error)
+	ListWebhookEventsBySourceAndStatus(ctx context.Context, sourceID pgtype.UUID, status WebhookStatus) ([]WebhookEvent, error)
+	UpdateDelivery(ctx context.Context, iD pgtype.UUID, status DeliveryStatus, responseCode pgtype.Int4, attempt pgtype.Int4, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error)
+	UpdateDestination(ctx context.Context, iD pgtype.UUID, name string, description pgtype.Text, destinationType DestinationType, config []byte, isActive pgtype.Bool, delaySeconds pgtype.Int4, retryAttempts pgtype.Int4) (Destination, error)
+	UpdateRule(ctx context.Context, iD pgtype.UUID, name string, version int32, isActive bool, mode RuleMode, config []byte, code pgtype.Text) (Rule, error)
+	UpdateSource(ctx context.Context, iD pgtype.UUID, name string, description pgtype.Text, protocol ProtocolType, authType AuthType, authConfig []byte, isActive pgtype.Bool) (Source, error)
+	UpdateUser(ctx context.Context, iD pgtype.UUID, role UserRole, firstName string, lastName string) (User, error)
+	UpdateUserPassword(ctx context.Context, iD pgtype.UUID, passwordHash string) (User, error)
+	UpdateWebhookEvent(ctx context.Context, iD pgtype.UUID, status WebhookStatus, metadata []byte, appliedRuleVersionID pgtype.UUID, scheduledAt pgtype.Timestamptz) (WebhookEvent, error)
 }
 
 var _ Querier = (*Queries)(nil)

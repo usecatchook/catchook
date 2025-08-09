@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -48,7 +48,7 @@ func RequestLogging(baseLogger logger.Logger) fiber.Handler {
 		}
 
 		if userID, exists := GetUserID(c); exists {
-			responseFields = append(responseFields, logger.Int("user_id", userID))
+			responseFields = append(responseFields, logger.String("user_id", userID))
 		}
 
 		if err != nil {
@@ -74,29 +74,24 @@ func generateRequestID() string {
 
 // GetContextWithRequestID returns a Go context with the request_id from Fiber context
 func GetContextWithRequestID(c *fiber.Ctx) context.Context {
-	if requestID := c.UserContext().Value(logger.RequestIDKey); requestID != nil {
+	base := c.UserContext()
+	if requestID := base.Value(logger.RequestIDKey); requestID != nil {
 		if id, ok := requestID.(string); ok {
-			return context.WithValue(c.Context(), logger.RequestIDKey, id)
+			return context.WithValue(base, logger.RequestIDKey, id)
 		}
 	}
-	return c.Context()
+	return base
 }
 
 func maskSensitiveData(body string) string {
-	sensitiveFields := []string{"password", "token", "secret", "authorization"}
+	sensitiveFields := []string{"password", "token", "secret", "authorization", "apikey", "api_key"}
 	masked := body
 
 	for _, field := range sensitiveFields {
-		if strings.Contains(masked, `"`+field+`":`) {
-			start := strings.Index(masked, `"`+field+`":"`)
-			if start != -1 {
-				start += len(`"` + field + `":"`)
-				end := strings.Index(masked[start:], `"`)
-				if end != -1 {
-					masked = masked[:start] + "***" + masked[start+end:]
-				}
-			}
-		}
+		pattern := `("` + field + `")\s*:\s*(".*?")`
+		re := regexp.MustCompile(`(?i)` + pattern) // (?i) pour ignorer la casse
+
+		masked = re.ReplaceAllString(masked, `$1: "***"`)
 	}
 
 	return masked
