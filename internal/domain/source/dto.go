@@ -25,9 +25,9 @@ type CreateRequest struct {
 }
 
 type UpdateRequest struct {
-	Name        string         `json:"name" validate:"required,min=2,max=50"`
+	Name        string         `json:"name" validate:"omitempty,min=2,max=50"`
 	Description string         `json:"description" validate:"omitempty,max=255"`
-	Protocol    string         `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
+	Protocol    string         `json:"protocol" validate:"omitempty,oneof=http grpc mqtt websocket"`
 	AuthType    AuthType       `json:"auth_type" validate:"omitempty,oneof=none basic bearer apikey signature"`
 	AuthConfig  map[string]any `json:"auth_config" validate:"omitempty"`
 }

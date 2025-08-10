@@ -196,7 +196,6 @@ func (s sourceService) Update(ctx context.Context, id string, req source.UpdateR
 		return nil, source.ErrSourceNotFound
 	}
 
-	// If name changed, ensure uniqueness
 	if req.Name != "" && req.Name != existing.Name {
 		other, err := s.sourceRepo.GetByName(ctx, req.Name)
 		if err != nil {
@@ -222,10 +221,8 @@ func (s sourceService) Update(ctx context.Context, id string, req source.UpdateR
 			return nil, fmt.Errorf("building auth config: %w", err)
 		}
 	case req.AuthType != "":
-		// Type changed but no config provided
 		return nil, fmt.Errorf("auth_config is required when changing auth_type")
 	default:
-		// Keep existing
 		finalAuthConfig = existing.AuthConfig
 	}
 
@@ -264,6 +261,24 @@ func (s sourceService) Update(ctx context.Context, id string, req source.UpdateR
 }
 
 func (s sourceService) Delete(ctx context.Context, id string) error {
-	//TODO implement me
-	panic("implement me")
+	ctx, span := tracer.StartSpan(ctx, "source.service.delete")
+	defer span.End()
+
+	s.appLogger.Info(ctx, "Deleting source", logger.String("source_id", id))
+
+	existing, err := s.sourceRepo.GetByID(ctx, id)
+	if err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("getting source by ID: %w", err)
+	}
+	if existing == nil {
+		return source.ErrSourceNotFound
+	}
+
+	if err := s.sourceRepo.Delete(ctx, id); err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("deleting source: %w", err)
+	}
+
+	return nil
 }

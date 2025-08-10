@@ -1,0 +1,25 @@
+meta {
+  name: Delete
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{apiUrl}}/sources/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+

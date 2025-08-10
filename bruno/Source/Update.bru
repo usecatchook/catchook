@@ -1,0 +1,37 @@
+meta {
+  name: Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{apiUrl}}/sources/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+body:json {
+  {
+    "name": "{{$randomUUID}}",
+    "description": "Updated description",
+    "protocol": "http",
+    "auth_type": "bearer",
+    "auth_config": {
+      "token": "new-token-value"
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+

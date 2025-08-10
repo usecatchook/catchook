@@ -81,7 +81,8 @@ func (s *Server) setupSourceRoutes(api fiber.Router) {
 	sources.Use(middleware.SessionAuth(s.container.Session))
 
 	sources.Post("/", s.handleCreateSource)
-	sources.Get(":id", s.handleGetSource)
+	sources.Get("/:id", s.handleGetSource)
 	sources.Get("/", s.handleListSources)
-	//TODO UD
+	sources.Put("/:id", s.handleUpdateSource)
+	sources.Delete("/:id", s.handleDeleteSource)
 }

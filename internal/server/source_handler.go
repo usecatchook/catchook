@@ -97,3 +97,77 @@ func (s *Server) handleListSources(c *fiber.Ctx) error {
 
 	return response.Paginated(c, sources, *pagination, "sources list")
 }
+
+func (s *Server) handleUpdateSource(c *fiber.Ctx) error {
+	ctx := middleware.GetContextWithRequestID(c)
+	ctx, span := tracer.StartSpan(ctx, "source.handler.update")
+	defer span.End()
+
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil || currentUser.Role == generated.UserRoleViewer {
+		return response.Forbidden(c, "viewer cannot update sources")
+	}
+
+	sourceID := c.Params("id")
+	if sourceID == "" {
+		return response.BadRequest(c, "source_id is required", nil)
+	}
+
+	var req source.UpdateRequest
+	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
+		var verr *validatorpkg.ValidationErrors
+		if errors.As(err, &verr) {
+			return response.ValidationFailed(c, verr.Errors)
+		}
+		return response.BadRequest(c, err.Error(), nil)
+	}
+
+	updated, err := s.container.SourceService.Update(ctx, sourceID, req, currentUser)
+	if err != nil {
+		var verr *validatorpkg.ValidationErrors
+		switch {
+		case errors.As(err, &verr):
+			return response.ValidationFailed(c, verr.Errors)
+		case errors.Is(err, source.ErrSourceNotFound):
+			return response.NotFound(c, "source not found")
+		case errors.Is(err, source.ErrSourceAlreadyExists):
+			return response.Conflict(c, "source already exists")
+		default:
+			return response.InternalError(c, "failed to update source")
+		}
+	}
+
+	resp, err := updated.ToResponse()
+	if err != nil {
+		return response.InternalError(c, "failed to serialize source")
+	}
+
+	return response.Success(c, resp, "source updated")
+}
+
+func (s *Server) handleDeleteSource(c *fiber.Ctx) error {
+	ctx := middleware.GetContextWithRequestID(c)
+	ctx, span := tracer.StartSpan(ctx, "source.handler.delete")
+	defer span.End()
+
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil || currentUser.Role == generated.UserRoleViewer {
+		return response.Forbidden(c, "viewer cannot delete sources")
+	}
+
+	sourceID := c.Params("id")
+	if sourceID == "" {
+		return response.BadRequest(c, "source_id is required", nil)
+	}
+
+	if err := s.container.SourceService.Delete(ctx, sourceID); err != nil {
+		switch {
+		case errors.Is(err, source.ErrSourceNotFound):
+			return response.NotFound(c, "source not found")
+		default:
+			return response.InternalError(c, "failed to delete source")
+		}
+	}
+
+	return response.NoContent(c)
+}
