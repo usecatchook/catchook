@@ -74,6 +74,16 @@ func (s *Server) handleListUsers(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "20"))
 
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
 	users, pagination, err := s.container.UserService.List(ctx, page, limit)
 	if err != nil {
 		return response.InternalError(c, "failed to list users")

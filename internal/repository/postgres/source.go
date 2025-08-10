@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/theotruvelot/catchook/internal/domain/source"
 	"github.com/theotruvelot/catchook/pkg/logger"
@@ -55,7 +56,7 @@ func (s sourceRepository) Create(ctx context.Context, source *source.Source) err
 			logger.Error(err),
 		)
 		span.RecordError(err)
-		return fmt.Errorf("failed to create user: %w", err)
+		return fmt.Errorf("failed to create source: %w", err)
 	}
 
 	source.ID = result.ID.String()
@@ -94,25 +95,107 @@ func (s sourceRepository) GetByID(ctx context.Context, id string) (*source.Sourc
 		Protocol:    string(result.Protocol),
 		AuthType:    source.AuthType(result.AuthType),
 		AuthConfig:  string(result.AuthConfig),
-		IsActive:    false,
+		IsActive:    result.IsActive.Bool,
 		CreatedAt:   result.CreatedAt.Time,
 		UpdatedAt:   result.UpdatedAt.Time,
 	}, nil
 }
 
 func (s sourceRepository) List(ctx context.Context, page, limit int) ([]*source.Source, *response.Pagination, error) {
-	//TODO implement me
-	panic("implement me")
+	ctx, span := tracer.StartSpan(ctx, "source.repository.list")
+	offset := (page - 1) * limit
+
+	total, err := s.CountSources(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return nil, nil, fmt.Errorf("failed to count sources: %w", err)
+	}
+
+	results, err := s.queries.ListSources(ctx, int32(limit), int32(offset))
+	if err != nil {
+		span.RecordError(err)
+		return nil, nil, fmt.Errorf("failed to list sources: %w", err)
+	}
+
+	sources := make([]*source.Source, len(results))
+	for i, result := range results {
+		sources[i] = &source.Source{
+			ID:          result.ID.String(),
+			UserID:      result.UserID.String(),
+			Name:        result.Name,
+			Description: result.Description,
+			Protocol:    string(result.Protocol),
+			AuthType:    source.AuthType(result.AuthType),
+			AuthConfig:  string(result.AuthConfig),
+			IsActive:    result.IsActive.Bool,
+			CreatedAt:   result.CreatedAt.Time,
+			UpdatedAt:   result.UpdatedAt.Time,
+		}
+	}
+
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
+	pagination := &response.Pagination{
+		CurrentPage: page,
+		TotalPages:  totalPages,
+		Total:       int(total),
+		Limit:       limit,
+		HasNext:     hasNext,
+		HasPrev:     hasPrev,
+	}
+
+	return sources, pagination, nil
 }
 
-func (s sourceRepository) Update(ctx context.Context, user *source.Source) error {
-	//TODO implement me
-	panic("implement me")
+func (s sourceRepository) Update(ctx context.Context, src *source.Source) error {
+	ctx, span := tracer.StartSpan(ctx, "source.repository.update")
+	defer span.End()
+
+	uid, err := uuid.Parse(src.ID)
+	if err != nil {
+		return fmt.Errorf("invalid source id: %w", err)
+	}
+
+	result, err := s.queries.UpdateSource(ctx,
+		uid,
+		src.Name,
+		src.Description,
+		generated.ProtocolType(src.Protocol),
+		generated.AuthType(src.AuthType),
+		[]byte(src.AuthConfig),
+		pgtype.Bool{Bool: src.IsActive, Valid: true},
+	)
+	if err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("failed to update source: %w", err)
+	}
+
+	src.UserID = result.UserID.String()
+	src.UpdatedAt = result.UpdatedAt.Time
+	src.CreatedAt = result.CreatedAt.Time
+	return nil
 }
 
 func (s sourceRepository) Delete(ctx context.Context, id string) error {
-	//TODO implement me
-	panic("implement me")
+	ctx, span := tracer.StartSpan(ctx, "source.repository.delete")
+	defer span.End()
+
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return fmt.Errorf("invalid source id: %w", err)
+	}
+
+	if err := s.queries.DeleteSource(ctx, uid); err != nil {
+		span.RecordError(err)
+		return fmt.Errorf("failed to delete source: %w", err)
+	}
+	return nil
 }
 
 func (s sourceRepository) GetByName(ctx context.Context, name string) (*source.Source, error) {
@@ -135,8 +218,21 @@ func (s sourceRepository) GetByName(ctx context.Context, name string) (*source.S
 		Protocol:    string(result.Protocol),
 		AuthType:    source.AuthType(result.AuthType),
 		AuthConfig:  string(result.AuthConfig),
-		IsActive:    false,
+		IsActive:    result.IsActive.Bool,
 		CreatedAt:   result.CreatedAt.Time,
 		UpdatedAt:   result.UpdatedAt.Time,
 	}, nil
+}
+
+func (s sourceRepository) CountSources(ctx context.Context) (int64, error) {
+	ctx, span := tracer.StartSpan(ctx, "source.repository.count_sources")
+	defer span.End()
+
+	result, err := s.queries.CountSources(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return 0, fmt.Errorf("failed to count sources: %w", err)
+	}
+
+	return result, nil
 }

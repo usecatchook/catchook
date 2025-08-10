@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/theotruvelot/catchook/internal/domain/source"
 	"github.com/theotruvelot/catchook/internal/middleware"
 	"github.com/theotruvelot/catchook/pkg/logger"
 	"github.com/theotruvelot/catchook/pkg/response"
 	"github.com/theotruvelot/catchook/pkg/tracer"
+	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
 )
 
 type sourceService struct {
@@ -39,7 +41,7 @@ func (s sourceService) Create(ctx context.Context, req source.CreateRequest, cur
 		return nil, source.ErrSourceAlreadyExists
 	}
 
-	authCfg, err := buildAuthConfigJSON(req)
+	authCfg, err := validateAndMarshalAuthConfig(req.AuthType, req.AuthConfig)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("building auth config: %w", err)
@@ -63,79 +65,83 @@ func (s sourceService) Create(ctx context.Context, req source.CreateRequest, cur
 	return newSource, nil
 }
 
-func buildAuthConfigJSON(req source.CreateRequest) (string, error) {
-	switch req.AuthType {
+func validateAndMarshalAuthConfig(authType source.AuthType, cfg map[string]any) (string, error) {
+	errors := map[string]string{}
+
+	switch authType {
 	case source.AuthTypeNone:
 		return "{}", nil
-
 	case source.AuthTypeBasic:
-		if req.BasicAuth == nil {
-			return "", fmt.Errorf("basic_auth is required when auth_type=basic")
-		}
-		b, err := json.Marshal(struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}{
-			Username: req.BasicAuth.Username,
-			Password: req.BasicAuth.Password,
-		})
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
-
+		requireFields(errors, cfg, "username", "password")
 	case source.AuthTypeBearer:
-		if req.BearerAuth == nil {
-			return "", fmt.Errorf("bearer_auth is required when auth_type=bearer")
-		}
-		b, err := json.Marshal(struct {
-			Token string `json:"token"`
-		}{
-			Token: req.BearerAuth.Token,
-		})
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
-
+		requireFields(errors, cfg, "token")
 	case source.AuthTypeApikey:
-		if req.APIKeyAuth == nil {
-			return "", fmt.Errorf("apikey_auth is required when auth_type=apikey")
-		}
-		b, err := json.Marshal(struct {
-			Location string `json:"location"`
-			Value    string `json:"value"`
-		}{
-			Location: req.APIKeyAuth.Location,
-			Value:    req.APIKeyAuth.Value,
-		})
-		if err != nil {
-			return "", err
-		}
-		return string(b), nil
-
+		requireFields(errors, cfg, "location", "value")
 	case source.AuthTypeSignature:
-		if req.SignatureAuth == nil {
-			return "", fmt.Errorf("signature_auth is required when auth_type=signature")
+		requireFields(errors, cfg, "secret", "header", "algorithm", "encoding")
+		if algo, ok := getString(cfg, "algorithm"); ok {
+			switch algo {
+			case "sha-1", "sha-256", "sha-512", "md5":
+			default:
+				errors["auth_config.algorithm"] = "must be one of: sha-1 sha-256 sha-512 md5"
+			}
 		}
-		b, err := json.Marshal(struct {
-			Secret    string `json:"secret"`
-			Header    string `json:"header"`
-			Algorithm string `json:"algorithm"`
-			Encoding  string `json:"encoding"`
-		}{
-			Secret:    req.SignatureAuth.Secret,
-			Header:    req.SignatureAuth.Header,
-			Algorithm: req.SignatureAuth.Algorithm,
-			Encoding:  req.SignatureAuth.Encoding,
-		})
-		if err != nil {
-			return "", err
+		if enc, ok := getString(cfg, "encoding"); ok {
+			switch enc {
+			case "base64", "base64url", "hex":
+			default:
+				errors["auth_config.encoding"] = "must be one of: base64 base64url hex"
+			}
 		}
-		return string(b), nil
 	default:
-		return "", fmt.Errorf("unsupported auth_type: %s", req.AuthType)
+		return "", &validatorpkg.ValidationErrors{Errors: map[string]string{
+			"auth_type": "unsupported auth_type",
+		}}
 	}
+
+	if len(errors) > 0 {
+		return "", &validatorpkg.ValidationErrors{Errors: errors}
+	}
+
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "", fmt.Errorf("marshal auth_config: %w", err)
+	}
+	return string(b), nil
+}
+
+func requireFields(errs map[string]string, cfg map[string]any, fields ...string) {
+	for _, f := range fields {
+		v, ok := cfg[f]
+		if !ok {
+			errs["auth_config."+f] = "is required"
+			continue
+		}
+		switch val := v.(type) {
+		case string:
+			if strings.TrimSpace(val) == "" {
+				errs["auth_config."+f] = "cannot be empty"
+			}
+		}
+	}
+}
+
+func getString(cfg map[string]any, key string) (string, bool) {
+	if cfg == nil {
+		return "", false
+	}
+	v, ok := cfg[key]
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false
+	}
+	return s, true
 }
 
 func (s sourceService) GetByID(ctx context.Context, id string) (*source.Source, error) {
@@ -156,14 +162,105 @@ func (s sourceService) GetByID(ctx context.Context, id string) (*source.Source, 
 	return sourceData, nil
 }
 
-func (s sourceService) List(ctx context.Context, page, limit int) ([]*source.Source, *response.Pagination, error) {
-	//TODO implement me
-	panic("implement me")
+func (s sourceService) List(ctx context.Context, page, limit int) ([]*source.SourceResponse, *response.Pagination, error) {
+	ctx, span := tracer.StartSpan(ctx, "source.service.list")
+	defer span.End()
+
+	sources, meta, err := s.sourceRepo.List(ctx, page, limit)
+	if err != nil {
+		span.RecordError(err)
+		s.appLogger.Error(ctx, "Failed to list sources", logger.Error(err))
+		return nil, nil, fmt.Errorf("failed to list sources: %w", err)
+	}
+
+	respList, err := source.ToResponses(sources)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to serialize source: %w", err)
+	}
+
+	return respList, meta, nil
 }
 
 func (s sourceService) Update(ctx context.Context, id string, req source.UpdateRequest, currentUser *middleware.User) (*source.Source, error) {
-	//TODO implement me
-	panic("implement me")
+	ctx, span := tracer.StartSpan(ctx, "source.service.update")
+	defer span.End()
+
+	s.appLogger.Info(ctx, "Updating source", logger.String("source_id", id))
+
+	existing, err := s.sourceRepo.GetByID(ctx, id)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("getting source by ID: %w", err)
+	}
+	if existing == nil {
+		return nil, source.ErrSourceNotFound
+	}
+
+	// If name changed, ensure uniqueness
+	if req.Name != "" && req.Name != existing.Name {
+		other, err := s.sourceRepo.GetByName(ctx, req.Name)
+		if err != nil {
+			span.RecordError(err)
+			return nil, fmt.Errorf("checking existing source by name: %w", err)
+		}
+		if other != nil && other.ID != id {
+			return nil, source.ErrSourceAlreadyExists
+		}
+	}
+
+	finalAuthType := existing.AuthType
+	if req.AuthType != "" {
+		finalAuthType = req.AuthType
+	}
+
+	var finalAuthConfig string
+	switch {
+	case req.AuthConfig != nil:
+		finalAuthConfig, err = validateAndMarshalAuthConfig(finalAuthType, req.AuthConfig)
+		if err != nil {
+			span.RecordError(err)
+			return nil, fmt.Errorf("building auth config: %w", err)
+		}
+	case req.AuthType != "":
+		// Type changed but no config provided
+		return nil, fmt.Errorf("auth_config is required when changing auth_type")
+	default:
+		// Keep existing
+		finalAuthConfig = existing.AuthConfig
+	}
+
+	name := existing.Name
+	if strings.TrimSpace(req.Name) != "" {
+		name = req.Name
+	}
+	description := existing.Description
+	if req.Description != "" {
+		description = req.Description
+	}
+	protocol := existing.Protocol
+	if strings.TrimSpace(req.Protocol) != "" {
+		protocol = req.Protocol
+	}
+
+	updated := &source.Source{
+		ID:          existing.ID,
+		UserID:      existing.UserID,
+		Name:        name,
+		Description: description,
+		Protocol:    protocol,
+		AuthType:    finalAuthType,
+		AuthConfig:  finalAuthConfig,
+		IsActive:    existing.IsActive,
+		CreatedAt:   existing.CreatedAt,
+		UpdatedAt:   existing.UpdatedAt,
+	}
+
+	if err := s.sourceRepo.Update(ctx, updated); err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("updating source: %w", err)
+	}
+
+	return updated, nil
 }
 
 func (s sourceService) Delete(ctx context.Context, id string) error {

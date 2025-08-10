@@ -12,6 +12,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countSources = `-- name: CountSources :one
+SELECT COUNT(*) FROM sources
+`
+
+func (q *Queries) CountSources(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countSources)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createSource = `-- name: CreateSource :one
 INSERT INTO sources (
     name, user_id, description, protocol, auth_type, auth_config, is_active
@@ -98,12 +109,14 @@ func (q *Queries) GetSourceByName(ctx context.Context, name string) (Source, err
 	return i, err
 }
 
-const listSourcesByUser = `-- name: ListSourcesByUser :many
-SELECT id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at FROM sources WHERE user_id = $1 ORDER BY created_at DESC
+const listSources = `-- name: ListSources :many
+SELECT id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at FROM sources
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) ListSourcesByUser(ctx context.Context, userID uuid.UUID) ([]Source, error) {
-	rows, err := q.db.Query(ctx, listSourcesByUser, userID)
+func (q *Queries) ListSources(ctx context.Context, limit int32, offset int32) ([]Source, error) {
+	rows, err := q.db.Query(ctx, listSources, limit, offset)
 	if err != nil {
 		return nil, err
 	}

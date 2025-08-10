@@ -310,16 +310,6 @@ func (r *userRepository) List(ctx context.Context, page, limit int) ([]*user.Use
 		logger.Int("page", page),
 		logger.Int("limit", limit))
 
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
 	offset := (page - 1) * limit
 
 	total, err := r.CountUsers(ctx)

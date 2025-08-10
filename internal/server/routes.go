@@ -82,5 +82,6 @@ func (s *Server) setupSourceRoutes(api fiber.Router) {
 
 	sources.Post("/", s.handleCreateSource)
 	sources.Get(":id", s.handleGetSource)
-	//TODO UDL
+	sources.Get("/", s.handleListSources)
+	//TODO UD
 }

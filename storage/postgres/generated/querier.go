@@ -13,6 +13,7 @@ import (
 
 type Querier interface {
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
+	CountSources(ctx context.Context) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CreateDelivery(ctx context.Context, webhookEventID uuid.UUID, destinationID uuid.UUID, status DeliveryStatus, responseCode pgtype.Int4, column5 interface{}, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error)
 	CreateDestination(ctx context.Context, userID uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error)
@@ -40,7 +41,7 @@ type Querier interface {
 	ListActiveRulesByUser(ctx context.Context, userID uuid.UUID) ([]Rule, error)
 	ListDeliveriesByWebhookEvent(ctx context.Context, webhookEventID uuid.UUID) ([]Delivery, error)
 	ListRulesBySourceAndDestination(ctx context.Context, sourceID uuid.UUID, destinationID uuid.UUID) ([]Rule, error)
-	ListSourcesByUser(ctx context.Context, userID uuid.UUID) ([]Source, error)
+	ListSources(ctx context.Context, limit int32, offset int32) ([]Source, error)
 	ListUsers(ctx context.Context, limit int32, offset int32) ([]User, error)
 	ListWebhookEventsBySource(ctx context.Context, sourceID uuid.UUID) ([]WebhookEvent, error)
 	ListWebhookEventsBySourceAndStatus(ctx context.Context, sourceID uuid.UUID, status WebhookStatus) ([]WebhookEvent, error)

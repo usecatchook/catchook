@@ -17,45 +17,19 @@ const (
 )
 
 type CreateRequest struct {
-	Name          string               `json:"name" validate:"required,min=2,max=50"`
-	Description   string               `json:"description" validate:"omitempty,max=255"`
-	Protocol      string               `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
-	AuthType      AuthType             `json:"auth_type" validate:"required,oneof=none basic bearer apikey signature"`
-	BasicAuth     *BasicAuthConfig     `json:"basic_auth" validate:"required_if=AuthType basic"`
-	BearerAuth    *BearerAuthConfig    `json:"bearer_auth" validate:"required_if=AuthType bearer"`
-	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth" validate:"required_if=AuthType apikey"`
-	SignatureAuth *SignatureAuthConfig `json:"signature_auth" validate:"required_if=AuthType signature"`
-}
-
-type BasicAuthConfig struct {
-	Username string `json:"username" validate:"required,min=1"`
-	Password string `json:"password" validate:"required,min=1"`
-}
-
-type BearerAuthConfig struct {
-	Token string `json:"token" validate:"required,min=1"`
-}
-
-type APIKeyAuthConfig struct {
-	Location string `json:"location" validate:"required,min=1"`
-	Value    string `json:"value" validate:"required,min=1"`
-}
-
-type SignatureAuthConfig struct {
-	Secret    string `json:"secret" validate:"required,min=1"`
-	Header    string `json:"header" validate:"required,min=1"`
-	Algorithm string `json:"algorithm" validate:"required,oneof=sha-1 sha-256 sha-512 md5"`
-	Encoding  string `json:"encoding" validate:"required,oneof=base64 base64url hex"`
+	Name        string         `json:"name" validate:"required,min=2,max=50"`
+	Description string         `json:"description" validate:"omitempty,max=255"`
+	Protocol    string         `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
+	AuthType    AuthType       `json:"auth_type" validate:"required,oneof=none basic bearer apikey signature"`
+	AuthConfig  map[string]any `json:"auth_config" validate:"omitempty"`
 }
 
 type UpdateRequest struct {
-	Name          string               `json:"name" validate:"required,min=2,max=50"`
-	Description   string               `json:"description" validate:"omitempty,max=255"`
-	Protocol      string               `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
-	BasicAuth     *BasicAuthConfig     `json:"basic_auth" validate:"required_if=AuthType basic"`
-	BearerAuth    *BearerAuthConfig    `json:"bearer_auth" validate:"required_if=AuthType bearer"`
-	APIKeyAuth    *APIKeyAuthConfig    `json:"apikey_auth" validate:"required_if=AuthType apikey"`
-	SignatureAuth *SignatureAuthConfig `json:"signature_auth" validate:"required_if=AuthType signature"`
+	Name        string         `json:"name" validate:"required,min=2,max=50"`
+	Description string         `json:"description" validate:"omitempty,max=255"`
+	Protocol    string         `json:"protocol" validate:"required,oneof=http grpc mqtt websocket"`
+	AuthType    AuthType       `json:"auth_type" validate:"omitempty,oneof=none basic bearer apikey signature"`
+	AuthConfig  map[string]any `json:"auth_config" validate:"omitempty"`
 }
 
 type SourceResponse struct {
@@ -100,5 +74,17 @@ func (s *Source) ToResponse() (*SourceResponse, error) {
 	}
 	resp.AuthConfig = cfg
 
+	return resp, nil
+}
+
+func ToResponses(list []*Source) ([]*SourceResponse, error) {
+	resp := make([]*SourceResponse, 0, len(list))
+	for _, item := range list {
+		r, err := item.ToResponse()
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, r)
+	}
 	return resp, nil
 }

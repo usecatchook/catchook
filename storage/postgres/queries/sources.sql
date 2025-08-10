@@ -7,8 +7,10 @@ RETURNING *;
 -- name: GetSourceByID :one
 SELECT * FROM sources WHERE id = $1;
 
--- name: ListSourcesByUser :many
-SELECT * FROM sources WHERE user_id = $1 ORDER BY created_at DESC;
+-- name: ListSources :many
+SELECT * FROM sources
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
 
 -- name: UpdateSource :one
 UPDATE sources SET
@@ -27,3 +29,6 @@ DELETE FROM sources WHERE id = $1;
 
 -- name: GetSourceByName :one
 SELECT * FROM sources where name = $1;
+
+-- name: CountSources :one
+SELECT COUNT(*) FROM sources;

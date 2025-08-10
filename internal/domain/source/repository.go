@@ -13,4 +13,5 @@ type Repository interface {
 	Update(ctx context.Context, user *Source) error
 	Delete(ctx context.Context, id string) error
 	GetByName(ctx context.Context, name string) (*Source, error)
+	CountSources(ctx context.Context) (int64, error)
 }
