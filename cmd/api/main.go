@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/theotruvelot/catchook/internal/app"
 	"github.com/theotruvelot/catchook/internal/config"
-	"github.com/theotruvelot/catchook/internal/server"
+	"github.com/theotruvelot/catchook/internal/platform/app"
+	"github.com/theotruvelot/catchook/internal/platform/server"
 	"github.com/theotruvelot/catchook/pkg/logger"
 )
 

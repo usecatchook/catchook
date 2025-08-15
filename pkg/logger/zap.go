@@ -63,7 +63,9 @@ func (l *zapLogger) getRequestID(ctx context.Context) string {
 
 func (l *zapLogger) log(ctx context.Context, level zapcore.Level, msg string, fields ...zap.Field) {
 	allFields := make([]zap.Field, 0, len(fields)+1)
-	allFields = append(allFields, zap.String("request_id", l.getRequestID(ctx)))
+	if l.getRequestID(ctx) != "no_request_id" {
+		allFields = append(allFields, String("request_id", l.getRequestID(ctx)))
+	}
 	allFields = append(allFields, fields...)
 
 	switch level {
