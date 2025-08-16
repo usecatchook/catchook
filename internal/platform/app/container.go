@@ -9,6 +9,9 @@ import (
 	auth "github.com/theotruvelot/catchook/internal/auth/domain"
 	authservice "github.com/theotruvelot/catchook/internal/auth/service"
 	"github.com/theotruvelot/catchook/internal/config"
+	destination "github.com/theotruvelot/catchook/internal/destination/domain"
+	destinationpg "github.com/theotruvelot/catchook/internal/destination/repository/postgres"
+	destinationservice "github.com/theotruvelot/catchook/internal/destination/service"
 	health "github.com/theotruvelot/catchook/internal/health/domain"
 	healthservice "github.com/theotruvelot/catchook/internal/health/service"
 	"github.com/theotruvelot/catchook/internal/platform/session"
@@ -38,11 +41,12 @@ type Container struct {
 	Validator *validator.Validator
 
 	// Services
-	UserService   user.Service
-	AuthService   auth.Service
-	HealthService health.Service
-	SetupService  setup.Service
-	SourceService source.Service
+	UserService        user.Service
+	AuthService        auth.Service
+	HealthService      health.Service
+	SetupService       setup.Service
+	SourceService      source.Service
+	DestinationService destination.Service
 }
 
 // NewContainer creates and initializes all dependencies
@@ -100,13 +104,14 @@ func (c *Container) initServices() {
 	// Repositories
 	userRepo := userpg.NewUserRepository(c.DB, c.AppLogger)
 	sourceRepo := sourcepg.NewSourceRepository(c.DB, c.AppLogger)
-
+	destinationRepo := destinationpg.NewDestinationRepository(c.DB, c.AppLogger)
 	// Services
 	c.UserService = userservice.NewUserService(userRepo, c.Cache, c.AppLogger)
 	c.AuthService = authservice.NewAuthService(userRepo, c.Session, c.AppLogger)
 	c.HealthService = healthservice.NewHealthService(c.DB, c.Redis, userRepo, c.AppLogger, c.Config.Server.Version)
 	c.SetupService = setupservice.NewSetupService(userRepo, c.AppLogger)
 	c.SourceService = sourceservice.NewSourceService(sourceRepo, c.AppLogger)
+	c.DestinationService = destinationservice.NewDestinationService(destinationRepo, c.AppLogger)
 	c.AppLogger.Info(context.Background(), "Services initialized")
 }
 

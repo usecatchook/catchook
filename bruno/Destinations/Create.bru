@@ -1,0 +1,44 @@
+meta {
+  name: Create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{apiUrl}}/destinations
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+body:json {
+  {
+    "name": "HTTP Destination with Basic Auth",
+    "description": "Destination HTTP avec authentification basique",
+    "destination_type": "http",
+    "config": {
+      "url": "https://httpbin.org/post",
+      "method": "POST",
+      "content_type": "application/json",
+      "timeout": 30,
+      "auth": {
+        "type": "basic",
+        "username": "test-user",
+        "password": "test-password"
+      }
+    },
+    "delay_seconds": 0,
+    "retry_attempts": 3
+  }
+}
+
+vars:post-response {
+  destination_id: res.body.data.id
+}
+
+settings {
+  encodeUrl: true
+}

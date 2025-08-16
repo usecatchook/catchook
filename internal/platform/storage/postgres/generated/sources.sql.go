@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countSources = `-- name: CountSources :one
@@ -159,7 +158,7 @@ WHERE id = $1
 RETURNING id, user_id, name, description, protocol, auth_type, auth_config, is_active, created_at, updated_at
 `
 
-func (q *Queries) UpdateSource(ctx context.Context, iD uuid.UUID, name string, description string, protocol ProtocolType, authType AuthType, authConfig []byte, isActive pgtype.Bool) (Source, error) {
+func (q *Queries) UpdateSource(ctx context.Context, iD uuid.UUID, name string, description string, protocol ProtocolType, authType AuthType, authConfig []byte, isActive bool) (Source, error) {
 	row := q.db.QueryRow(ctx, updateSource,
 		iD,
 		name,

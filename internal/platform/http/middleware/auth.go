@@ -24,35 +24,60 @@ func SessionAuth(sessionManager session.Manager) fiber.Handler {
 			Role: session.Role,
 		}
 
-		ctx := auth.WithUser(c.Context(), authUser)
-		c.SetUserContext(ctx)
+		c.Locals("auth_user", authUser)
 
 		return c.Next()
 	}
 }
 
 func GetAuthUser(c *fiber.Ctx) (*auth.AuthUser, error) {
-	return auth.GetUser(c.Context())
+	user := c.Locals("auth_user")
+	if user == nil {
+		return nil, auth.ErrUserNotInContext
+	}
+
+	authUser, ok := user.(*auth.AuthUser)
+	if !ok {
+		return nil, auth.ErrInvalidUserType
+	}
+
+	return authUser, nil
 }
 
 func GetAuthUserID(c *fiber.Ctx) (string, error) {
-	return auth.GetUserID(c.Context())
+	user, err := GetAuthUser(c)
+	if err != nil {
+		return "", err
+	}
+	return user.ID, nil
 }
 
 func RequirePermission(permission auth.Permission) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if err := auth.RequirePermission(c.Context(), permission); err != nil {
+		user, err := GetAuthUser(c)
+		if err != nil {
+			return response.Unauthorized(c, "Authentication required")
+		}
+
+		if !user.HasPermission(permission) {
 			return response.Forbidden(c, "Insufficient permissions")
 		}
+
 		return c.Next()
 	}
 }
 
 func RequireAdmin() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if err := auth.RequireAdmin(c.Context()); err != nil {
+		user, err := GetAuthUser(c)
+		if err != nil {
+			return response.Unauthorized(c, "Authentication required")
+		}
+
+		if !user.IsAdmin() {
 			return response.Forbidden(c, "Admin permissions required")
 		}
+
 		return c.Next()
 	}
 }
@@ -64,7 +89,7 @@ func RequireOwnership(paramName string) fiber.Handler {
 			return response.BadRequest(c, "Resource ID is required", nil)
 		}
 
-		user, err := auth.GetUser(c.Context())
+		user, err := GetAuthUser(c)
 		if err != nil {
 			return response.Unauthorized(c, "Authentication required")
 		}
@@ -79,7 +104,7 @@ func RequireOwnership(paramName string) fiber.Handler {
 
 func RequireOwnershipOrAdmin(paramName string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		user, err := auth.GetUser(c.Context())
+		user, err := GetAuthUser(c)
 		if err != nil {
 			return response.Unauthorized(c, "Authentication required")
 		}

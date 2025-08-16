@@ -49,17 +49,17 @@ migrate-create: ## Create a new migration file
 	migrate create -ext sql -dir storage/postgres/schema -seq $$name
 
 migrate-up: ## Run all pending migrations
-	migrate -path storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" up
+	migrate -path internal/platform/storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" up
 
 migrate-down: ## Rollback the last migration
-	migrate -path storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" down 1
+	migrate -path internal/platform/storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" down 1
 
 migrate-force: ## Force set migration version
 	@read -p "Enter version: " version; \
-	migrate -path storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" force $$version
+	migrate -path internal/platform/storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" force $$version
 
 migrate-status: ## Show migration status
-	migrate -path storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" version
+	migrate -path internal/platform/storage/postgres/schema -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" version
 
 # Dependencies
 deps: ## Install all dependencies

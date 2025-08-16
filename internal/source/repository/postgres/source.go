@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/theotruvelot/catchook/internal/platform/storage/postgres/generated"
 	source "github.com/theotruvelot/catchook/internal/source/domain"
@@ -95,7 +94,7 @@ func (s sourceRepository) GetByID(ctx context.Context, id string) (*source.Sourc
 		Protocol:    string(result.Protocol),
 		AuthType:    source.AuthType(result.AuthType),
 		AuthConfig:  string(result.AuthConfig),
-		IsActive:    result.IsActive.Bool,
+		IsActive:    result.IsActive,
 		CreatedAt:   result.CreatedAt.Time,
 		UpdatedAt:   result.UpdatedAt.Time,
 	}, nil
@@ -127,7 +126,7 @@ func (s sourceRepository) List(ctx context.Context, page, limit int) ([]*source.
 			Protocol:    string(result.Protocol),
 			AuthType:    source.AuthType(result.AuthType),
 			AuthConfig:  string(result.AuthConfig),
-			IsActive:    result.IsActive.Bool,
+			IsActive:    result.IsActive,
 			CreatedAt:   result.CreatedAt.Time,
 			UpdatedAt:   result.UpdatedAt.Time,
 		}
@@ -169,7 +168,7 @@ func (s sourceRepository) Update(ctx context.Context, src *source.Source) error 
 		generated.ProtocolType(src.Protocol),
 		generated.AuthType(src.AuthType),
 		[]byte(src.AuthConfig),
-		pgtype.Bool{Bool: src.IsActive, Valid: true},
+		src.IsActive,
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -218,7 +217,7 @@ func (s sourceRepository) GetByName(ctx context.Context, name string) (*source.S
 		Protocol:    string(result.Protocol),
 		AuthType:    source.AuthType(result.AuthType),
 		AuthConfig:  string(result.AuthConfig),
-		IsActive:    result.IsActive.Bool,
+		IsActive:    result.IsActive,
 		CreatedAt:   result.CreatedAt.Time,
 		UpdatedAt:   result.UpdatedAt.Time,
 	}, nil

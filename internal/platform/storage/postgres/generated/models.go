@@ -563,12 +563,12 @@ type Destination struct {
 	ID              uuid.UUID          `db:"id" json:"id"`
 	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
 	Name            string             `db:"name" json:"name"`
-	Description     pgtype.Text        `db:"description" json:"description"`
+	Description     string             `db:"description" json:"description"`
 	DestinationType DestinationType    `db:"destination_type" json:"destination_type"`
 	Config          []byte             `db:"config" json:"config"`
-	IsActive        pgtype.Bool        `db:"is_active" json:"is_active"`
-	DelaySeconds    pgtype.Int4        `db:"delay_seconds" json:"delay_seconds"`
-	RetryAttempts   pgtype.Int4        `db:"retry_attempts" json:"retry_attempts"`
+	IsActive        bool               `db:"is_active" json:"is_active"`
+	DelaySeconds    int32              `db:"delay_seconds" json:"delay_seconds"`
+	RetryAttempts   int32              `db:"retry_attempts" json:"retry_attempts"`
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
@@ -594,7 +594,7 @@ type Pipeline struct {
 	SourceID       uuid.UUID          `db:"source_id" json:"source_id"`
 	DestinationID  uuid.UUID          `db:"destination_id" json:"destination_id"`
 	Name           string             `db:"name" json:"name"`
-	Description    pgtype.Text        `db:"description" json:"description"`
+	Description    string             `db:"description" json:"description"`
 	IsActive       bool               `db:"is_active" json:"is_active"`
 	ExecutionOrder int32              `db:"execution_order" json:"execution_order"`
 	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
@@ -609,7 +609,7 @@ type Source struct {
 	Protocol    ProtocolType       `db:"protocol" json:"protocol"`
 	AuthType    AuthType           `db:"auth_type" json:"auth_type"`
 	AuthConfig  []byte             `db:"auth_config" json:"auth_config"`
-	IsActive    pgtype.Bool        `db:"is_active" json:"is_active"`
+	IsActive    bool               `db:"is_active" json:"is_active"`
 	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }

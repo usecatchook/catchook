@@ -7,8 +7,48 @@ RETURNING *;
 -- name: GetDestinationByID :one
 SELECT * FROM destinations WHERE id = $1;
 
--- name: ListActiveDestinationsByUser :many
-SELECT * FROM destinations WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC;
+-- name: GetDestinationByName :one
+SELECT * FROM destinations WHERE name = $1;
+
+-- name: ListDestinations :many
+SELECT name, description, destination_type, is_active, created_at, updated_at FROM destinations
+WHERE 
+    ($1 = '' OR name ILIKE '%' || $1 || '%' OR description ILIKE '%' || $1 || '%')
+    AND ($2 = '' OR destination_type = $2::destination_type)
+    AND (NOT $3 OR is_active = $4)
+ORDER BY 
+    CASE 
+        WHEN $5 = 'name' AND $6 = 'asc' THEN name
+    END ASC,
+    CASE 
+        WHEN $5 = 'name' AND $6 = 'desc' THEN name
+    END DESC,
+    CASE 
+        WHEN $5 = 'created_at' AND $6 = 'asc' THEN created_at
+    END ASC,
+    CASE 
+        WHEN $5 = 'updated_at' AND $6 = 'asc' THEN updated_at
+    END ASC,
+    CASE 
+        WHEN $5 = 'updated_at' AND $6 = 'desc' THEN updated_at
+    END DESC,
+    CASE 
+        WHEN $5 = 'is_active' AND $6 = 'asc' THEN is_active
+    END ASC,
+    CASE 
+        WHEN $5 = 'is_active' AND $6 = 'desc' THEN is_active
+    END DESC,
+    CASE 
+        WHEN $5 = 'created_at' AND $6 = 'desc' OR $5 = '' OR $5 IS NULL THEN created_at
+    END DESC
+LIMIT $7 OFFSET $8;
+
+-- name: CountDestinations :one
+SELECT COUNT(*) FROM destinations
+WHERE 
+    ($1 = '' OR name ILIKE '%' || $1 || '%' OR description ILIKE '%' || $1 || '%')
+    AND ($2 = '' OR destination_type = $2::destination_type)
+    AND (NOT $3 OR is_active = $4);
 
 -- name: UpdateDestination :one
 UPDATE destinations SET

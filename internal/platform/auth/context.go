@@ -108,7 +108,6 @@ func GetUser(ctx context.Context) (*AuthUser, error) {
 	if !ok {
 		return nil, ErrInvalidUserType
 	}
-
 	return authUser, nil
 }
 

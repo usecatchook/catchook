@@ -17,6 +17,7 @@ import (
 
 	authhttp "github.com/theotruvelot/catchook/internal/auth/transport/http"
 	"github.com/theotruvelot/catchook/internal/config"
+	destinationhttp "github.com/theotruvelot/catchook/internal/destination/transport/http"
 	healthhttp "github.com/theotruvelot/catchook/internal/health/transport/http"
 	"github.com/theotruvelot/catchook/internal/platform/http/middleware"
 	setuphttp "github.com/theotruvelot/catchook/internal/setup/transport/http"
@@ -32,11 +33,12 @@ type Server struct {
 	appLogger logger.Logger
 
 	// Handlers
-	authHandler   *authhttp.Handler
-	healthHandler *healthhttp.Handler
-	setupHandler  *setuphttp.Handler
-	userHandler   *userhttp.Handler
-	sourceHandler *sourcehttp.Handler
+	authHandler        *authhttp.Handler
+	healthHandler      *healthhttp.Handler
+	setupHandler       *setuphttp.Handler
+	userHandler        *userhttp.Handler
+	sourceHandler      *sourcehttp.Handler
+	destinationHandler *destinationhttp.Handler
 }
 
 func NewServer(container *app.Container) *Server {
@@ -46,11 +48,12 @@ func NewServer(container *app.Container) *Server {
 		appLogger: container.AppLogger,
 
 		// Initialize handlers with their dependencies
-		authHandler:   authhttp.NewHandler(container.AuthService, container.Validator),
-		healthHandler: healthhttp.NewHandler(container.HealthService),
-		setupHandler:  setuphttp.NewHandler(container.SetupService, container.Validator),
-		userHandler:   userhttp.NewHandler(container.UserService, container.Validator),
-		sourceHandler: sourcehttp.NewHandler(container.SourceService, container.Validator),
+		authHandler:        authhttp.NewHandler(container.AuthService, container.Validator),
+		healthHandler:      healthhttp.NewHandler(container.HealthService),
+		setupHandler:       setuphttp.NewHandler(container.SetupService, container.Validator),
+		userHandler:        userhttp.NewHandler(container.UserService, container.Validator),
+		sourceHandler:      sourcehttp.NewHandler(container.SourceService, container.Validator),
+		destinationHandler: destinationhttp.NewHandler(container.DestinationService, container.Validator),
 	}
 
 	server.app = server.createFiberApp()

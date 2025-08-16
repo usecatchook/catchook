@@ -105,7 +105,7 @@ type GetPipelineWithDetailsRow struct {
 	SourceID        uuid.UUID          `db:"source_id" json:"source_id"`
 	DestinationID   uuid.UUID          `db:"destination_id" json:"destination_id"`
 	Name            string             `db:"name" json:"name"`
-	Description     pgtype.Text        `db:"description" json:"description"`
+	Description     string             `db:"description" json:"description"`
 	IsActive        bool               `db:"is_active" json:"is_active"`
 	ExecutionOrder  int32              `db:"execution_order" json:"execution_order"`
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
@@ -258,7 +258,7 @@ WHERE id = $1
 RETURNING id, user_id, source_id, destination_id, name, description, is_active, execution_order, created_at, updated_at
 `
 
-func (q *Queries) UpdatePipeline(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, isActive bool, executionOrder int32) (Pipeline, error) {
+func (q *Queries) UpdatePipeline(ctx context.Context, iD uuid.UUID, name string, description string, isActive bool, executionOrder int32) (Pipeline, error) {
 	row := q.db.QueryRow(ctx, updatePipeline,
 		iD,
 		name,

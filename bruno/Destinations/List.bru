@@ -1,0 +1,24 @@
+meta {
+  name: List
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{apiUrl}}/destinations?page=1&limit=20
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+params:query {
+  page: 1
+  limit: 20
+}
+
+settings {
+  encodeUrl: true
+}

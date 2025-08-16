@@ -19,15 +19,55 @@ CREATE TABLE IF NOT EXISTS sources (
     protocol protocol_type NOT NULL,
     auth_type auth_type NOT NULL DEFAULT 'none',
     auth_config JSONB DEFAULT '{}'::jsonb,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_sources_user_id ON sources(user_id);
 CREATE INDEX IF NOT EXISTS idx_sources_name ON sources(name);
 CREATE INDEX IF NOT EXISTS idx_sources_is_active ON sources(is_active);
 CREATE INDEX IF NOT EXISTS idx_sources_created_at ON sources(created_at);
+
+-- Table destinations
+CREATE TABLE destinations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    destination_type destination_type NOT NULL DEFAULT 'http',
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    delay_seconds INTEGER NOT NULL DEFAULT 0,
+    retry_attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_destinations_user_id ON destinations(user_id);
+CREATE INDEX IF NOT EXISTS idx_destinations_is_active ON destinations(is_active);
+CREATE INDEX IF NOT EXISTS idx_destinations_created_at ON destinations(created_at);
+
+-- Table pipelines
+CREATE TABLE IF NOT EXISTS pipelines (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source_id UUID NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    destination_id UUID NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    execution_order INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, source_id, destination_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipelines_user_id ON pipelines(user_id);
+CREATE INDEX IF NOT EXISTS idx_pipelines_source_id ON pipelines(source_id);
+CREATE INDEX IF NOT EXISTS idx_pipelines_destination_id ON pipelines(destination_id);
+CREATE INDEX IF NOT EXISTS idx_pipelines_is_active ON pipelines(is_active);
+CREATE INDEX IF NOT EXISTS idx_pipelines_execution_order ON pipelines(execution_order);
 
 -- Table webhook_events
 CREATE TABLE IF NOT EXISTS webhook_events (
@@ -43,8 +83,8 @@ CREATE TABLE IF NOT EXISTS webhook_events (
     error_message TEXT,
     scheduled_at TIMESTAMPTZ,
     processed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_webhook_events_source_id ON webhook_events(source_id);
@@ -53,46 +93,6 @@ CREATE INDEX IF NOT EXISTS idx_webhook_events_status ON webhook_events(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON webhook_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_processed_at ON webhook_events(processed_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_scheduled_at ON webhook_events(scheduled_at);
-
--- Table destinations
-CREATE TABLE destinations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id),
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    destination_type destination_type NOT NULL DEFAULT 'http',
-    config JSONB DEFAULT '{}'::jsonb,
-    is_active BOOLEAN DEFAULT TRUE,
-    delay_seconds INTEGER DEFAULT 0,
-    retry_attempts INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_destinations_user_id ON destinations(user_id);
-CREATE INDEX IF NOT EXISTS idx_destinations_is_active ON destinations(is_active);
-CREATE INDEX IF NOT EXISTS idx_destinations_created_at ON destinations(created_at);
-
--- Table pipelines
-CREATE TABLE IF NOT EXISTS pipelines (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    source_id UUID NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
-    destination_id UUID NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    description TEXT DEFAULT '',
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    execution_order INTEGER NOT NULL DEFAULT 1,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, source_id, destination_id, name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_pipelines_user_id ON pipelines(user_id);
-CREATE INDEX IF NOT EXISTS idx_pipelines_source_id ON pipelines(source_id);
-CREATE INDEX IF NOT EXISTS idx_pipelines_destination_id ON pipelines(destination_id);
-CREATE INDEX IF NOT EXISTS idx_pipelines_is_active ON pipelines(is_active);
-CREATE INDEX IF NOT EXISTS idx_pipelines_execution_order ON pipelines(execution_order);
 
 -- Table filters
 CREATE TABLE IF NOT EXISTS filters (
@@ -106,8 +106,8 @@ CREATE TABLE IF NOT EXISTS filters (
     code TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     execution_order INTEGER NOT NULL DEFAULT 1,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_filters_pipeline_id ON filters(pipeline_id);
@@ -127,8 +127,8 @@ CREATE TABLE IF NOT EXISTS transformations (
     code TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     execution_order INTEGER NOT NULL DEFAULT 1,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_transformations_pipeline_id ON transformations(pipeline_id);
@@ -146,8 +146,8 @@ CREATE TABLE IF NOT EXISTS deliveries (
     attempt INTEGER DEFAULT 0,
     last_error TEXT,
     scheduled_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_deliveries_webhook_event_id ON deliveries(webhook_event_id);
@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS webhook_steps (
     duration_ms INTEGER,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_webhook_steps_webhook_event_id ON webhook_steps(webhook_event_id);

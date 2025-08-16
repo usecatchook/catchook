@@ -12,6 +12,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countDestinations = `-- name: CountDestinations :one
+SELECT COUNT(*) FROM destinations
+WHERE 
+    ($1 = '' OR name ILIKE '%' || $1 || '%' OR description ILIKE '%' || $1 || '%')
+    AND ($2 = '' OR destination_type = $2::destination_type)
+    AND (NOT $3 OR is_active = $4)
+`
+
+func (q *Queries) CountDestinations(ctx context.Context, column1 interface{}, column2 interface{}, column3 interface{}, isActive bool) (int64, error) {
+	row := q.db.QueryRow(ctx, countDestinations,
+		column1,
+		column2,
+		column3,
+		isActive,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDestination = `-- name: CreateDestination :one
 INSERT INTO destinations (
     user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts
@@ -19,7 +39,7 @@ INSERT INTO destinations (
 RETURNING id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at
 `
 
-func (q *Queries) CreateDestination(ctx context.Context, userID uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error) {
+func (q *Queries) CreateDestination(ctx context.Context, userID uuid.UUID, name string, description string, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error) {
 	row := q.db.QueryRow(ctx, createDestination,
 		userID,
 		name,
@@ -79,29 +99,95 @@ func (q *Queries) GetDestinationByID(ctx context.Context, id uuid.UUID) (Destina
 	return i, err
 }
 
-const listActiveDestinationsByUser = `-- name: ListActiveDestinationsByUser :many
-SELECT id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at FROM destinations WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC
+const getDestinationByName = `-- name: GetDestinationByName :one
+SELECT id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at FROM destinations WHERE name = $1
 `
 
-func (q *Queries) ListActiveDestinationsByUser(ctx context.Context, userID uuid.UUID) ([]Destination, error) {
-	rows, err := q.db.Query(ctx, listActiveDestinationsByUser, userID)
+func (q *Queries) GetDestinationByName(ctx context.Context, name string) (Destination, error) {
+	row := q.db.QueryRow(ctx, getDestinationByName, name)
+	var i Destination
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.DestinationType,
+		&i.Config,
+		&i.IsActive,
+		&i.DelaySeconds,
+		&i.RetryAttempts,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listDestinations = `-- name: ListDestinations :many
+SELECT name, description, destination_type, is_active, created_at, updated_at FROM destinations
+WHERE 
+    ($1 = '' OR name ILIKE '%' || $1 || '%' OR description ILIKE '%' || $1 || '%')
+    AND ($2 = '' OR destination_type = $2::destination_type)
+    AND (NOT $3 OR is_active = $4)
+ORDER BY 
+    CASE 
+        WHEN $5 = 'name' AND $6 = 'asc' THEN name
+    END ASC,
+    CASE 
+        WHEN $5 = 'name' AND $6 = 'desc' THEN name
+    END DESC,
+    CASE 
+        WHEN $5 = 'created_at' AND $6 = 'asc' THEN created_at
+    END ASC,
+    CASE 
+        WHEN $5 = 'updated_at' AND $6 = 'asc' THEN updated_at
+    END ASC,
+    CASE 
+        WHEN $5 = 'updated_at' AND $6 = 'desc' THEN updated_at
+    END DESC,
+    CASE 
+        WHEN $5 = 'is_active' AND $6 = 'asc' THEN is_active
+    END ASC,
+    CASE 
+        WHEN $5 = 'is_active' AND $6 = 'desc' THEN is_active
+    END DESC,
+    CASE 
+        WHEN $5 = 'created_at' AND $6 = 'desc' OR $5 = '' OR $5 IS NULL THEN created_at
+    END DESC
+LIMIT $7 OFFSET $8
+`
+
+type ListDestinationsRow struct {
+	Name            string             `db:"name" json:"name"`
+	Description     string             `db:"description" json:"description"`
+	DestinationType DestinationType    `db:"destination_type" json:"destination_type"`
+	IsActive        bool               `db:"is_active" json:"is_active"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) ListDestinations(ctx context.Context, column1 interface{}, column2 interface{}, column3 interface{}, isActive bool, column5 interface{}, column6 interface{}, limit int32, offset int32) ([]ListDestinationsRow, error) {
+	rows, err := q.db.Query(ctx, listDestinations,
+		column1,
+		column2,
+		column3,
+		isActive,
+		column5,
+		column6,
+		limit,
+		offset,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Destination{}
+	items := []ListDestinationsRow{}
 	for rows.Next() {
-		var i Destination
+		var i ListDestinationsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
 			&i.Name,
 			&i.Description,
 			&i.DestinationType,
-			&i.Config,
 			&i.IsActive,
-			&i.DelaySeconds,
-			&i.RetryAttempts,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -129,7 +215,7 @@ WHERE id = $1
 RETURNING id, user_id, name, description, destination_type, config, is_active, delay_seconds, retry_attempts, created_at, updated_at
 `
 
-func (q *Queries) UpdateDestination(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, config []byte, isActive pgtype.Bool, delaySeconds pgtype.Int4, retryAttempts pgtype.Int4) (Destination, error) {
+func (q *Queries) UpdateDestination(ctx context.Context, iD uuid.UUID, name string, description string, destinationType DestinationType, config []byte, isActive bool, delaySeconds int32, retryAttempts int32) (Destination, error) {
 	row := q.db.QueryRow(ctx, updateDestination,
 		iD,
 		name,

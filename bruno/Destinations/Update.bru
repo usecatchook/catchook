@@ -1,0 +1,45 @@
+meta {
+  name: Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{apiUrl}}/destinations/{{destination_id}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: {{session_id}}
+}
+
+body:json {
+  {
+    "name": "Updated HTTP Destination",
+    "description": "Destination HTTP mise à jour",
+    "destination_type": "http",
+    "config": {
+      "url": "https://httpbin.org/put",
+      "method": "PUT",
+      "content_type": "application/json",
+      "timeout": 45,
+      "auth": {
+        "type": "bearer",
+        "token": "your-bearer-token-here"
+      }
+    },
+    "is_active": true,
+    "delay_seconds": 5,
+    "retry_attempts": 2
+  }
+}
+
+vars:post-response {
+  destination_id: res.body.data.id
+}
+
+settings {
+  encodeUrl: true
+}
+

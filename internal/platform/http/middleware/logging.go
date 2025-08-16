@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
+	"github.com/theotruvelot/catchook/internal/platform/auth"
 	"github.com/theotruvelot/catchook/pkg/logger"
 )
 
@@ -72,14 +73,19 @@ func generateRequestID() string {
 	return hex.EncodeToString(bytes)
 }
 
-// GetContextWithRequestID returns a Go context with the request_id from Fiber context
 func GetContextWithRequestID(c *fiber.Ctx) context.Context {
 	base := c.UserContext()
+
 	if requestID := base.Value(logger.RequestIDKey); requestID != nil {
 		if id, ok := requestID.(string); ok {
-			return context.WithValue(base, logger.RequestIDKey, id)
+			base = context.WithValue(base, logger.RequestIDKey, id)
 		}
 	}
+
+	if authUser := c.Locals("auth_user"); authUser != nil {
+		base = auth.WithUser(base, authUser.(*auth.AuthUser))
+	}
+
 	return base
 }
 

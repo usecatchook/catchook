@@ -30,6 +30,9 @@ func (s *Server) setupRoutes() {
 	// Source routes
 	s.setupSourceRoutes(api)
 
+	// Destination routes
+	s.setupDestinationRoutes(api)
+
 	// 404 handler
 	s.app.Use(func(c *fiber.Ctx) error {
 		return response.NotFound(c, "Route not found")
@@ -85,4 +88,15 @@ func (s *Server) setupSourceRoutes(api fiber.Router) {
 	sources.Get("/", s.sourceHandler.ListSources)
 	sources.Put("/:id", middleware.RequireOwnershipOrAdmin("id"), s.sourceHandler.UpdateSource)
 	sources.Delete("/:id", middleware.RequireOwnershipOrAdmin("id"), s.sourceHandler.DeleteSource)
+}
+
+func (s *Server) setupDestinationRoutes(api fiber.Router) {
+	destinations := api.Group("/destinations")
+	destinations.Use(middleware.SessionAuth(s.container.Session))
+
+	destinations.Post("/", middleware.RequirePermission(auth.PermissionWrite), s.destinationHandler.CreateDestination)
+	destinations.Get("/:id", s.destinationHandler.GetDestination)
+	destinations.Get("/", s.destinationHandler.ListDestinations)
+	destinations.Put("/:id", middleware.RequireOwnershipOrAdmin("id"), s.destinationHandler.UpdateDestination)
+	destinations.Delete("/:id", middleware.RequireOwnershipOrAdmin("id"), s.destinationHandler.DeleteDestination)
 }
