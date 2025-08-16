@@ -12,31 +12,48 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createWebhookEvent = `-- name: CreateWebhookEvent :one
-INSERT INTO webhook_events (
-    source_id, payload, metadata, applied_rule_version_id, status, scheduled_at
-) VALUES ($1, $2, COALESCE($3, '{}'::jsonb), $4, $5, $6)
-RETURNING id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at
+const countWebhookEventsByStatus = `-- name: CountWebhookEventsByStatus :one
+SELECT COUNT(*) FROM webhook_events WHERE status = $1
 `
 
-func (q *Queries) CreateWebhookEvent(ctx context.Context, sourceID uuid.UUID, payload []byte, column3 interface{}, appliedRuleVersionID pgtype.UUID, status WebhookStatus, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
+func (q *Queries) CountWebhookEventsByStatus(ctx context.Context, status WebhookStatus) (int64, error) {
+	row := q.db.QueryRow(ctx, countWebhookEventsByStatus, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createWebhookEvent = `-- name: CreateWebhookEvent :one
+INSERT INTO webhook_events (
+    source_id, pipeline_id, payload, original_payload, metadata, status, scheduled_at
+) VALUES ($1, $2, $3, $4, COALESCE($5, '{}'::jsonb), COALESCE($6, 'pending'), $7)
+RETURNING id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at
+`
+
+func (q *Queries) CreateWebhookEvent(ctx context.Context, sourceID uuid.UUID, pipelineID pgtype.UUID, payload []byte, originalPayload []byte, column5 interface{}, column6 interface{}, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
 	row := q.db.QueryRow(ctx, createWebhookEvent,
 		sourceID,
+		pipelineID,
 		payload,
-		column3,
-		appliedRuleVersionID,
-		status,
+		originalPayload,
+		column5,
+		column6,
 		scheduledAt,
 	)
 	var i WebhookEvent
 	err := row.Scan(
 		&i.ID,
 		&i.SourceID,
+		&i.PipelineID,
 		&i.Payload,
+		&i.OriginalPayload,
 		&i.Metadata,
-		&i.AppliedRuleVersionID,
+		&i.FilterResults,
+		&i.TransformationResults,
 		&i.Status,
+		&i.ErrorMessage,
 		&i.ScheduledAt,
+		&i.ProcessedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -53,7 +70,7 @@ func (q *Queries) DeleteWebhookEvent(ctx context.Context, id uuid.UUID) error {
 }
 
 const getWebhookEventByID = `-- name: GetWebhookEventByID :one
-SELECT id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at FROM webhook_events WHERE id = $1
+SELECT id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at FROM webhook_events WHERE id = $1
 `
 
 func (q *Queries) GetWebhookEventByID(ctx context.Context, id uuid.UUID) (WebhookEvent, error) {
@@ -62,19 +79,264 @@ func (q *Queries) GetWebhookEventByID(ctx context.Context, id uuid.UUID) (Webhoo
 	err := row.Scan(
 		&i.ID,
 		&i.SourceID,
+		&i.PipelineID,
 		&i.Payload,
+		&i.OriginalPayload,
 		&i.Metadata,
-		&i.AppliedRuleVersionID,
+		&i.FilterResults,
+		&i.TransformationResults,
 		&i.Status,
+		&i.ErrorMessage,
 		&i.ScheduledAt,
+		&i.ProcessedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const getWebhookEventWithDetails = `-- name: GetWebhookEventWithDetails :one
+SELECT 
+    we.id, we.source_id, we.pipeline_id, we.payload, we.original_payload, we.metadata, we.filter_results, we.transformation_results, we.status, we.error_message, we.scheduled_at, we.processed_at, we.created_at, we.updated_at,
+    p.name as pipeline_name,
+    s.name as source_name,
+    d.name as destination_name
+FROM webhook_events we
+LEFT JOIN pipelines p ON we.pipeline_id = p.id
+LEFT JOIN sources s ON we.source_id = s.id
+LEFT JOIN destinations d ON p.destination_id = d.id
+WHERE we.id = $1
+`
+
+type GetWebhookEventWithDetailsRow struct {
+	ID                    uuid.UUID          `db:"id" json:"id"`
+	SourceID              uuid.UUID          `db:"source_id" json:"source_id"`
+	PipelineID            pgtype.UUID        `db:"pipeline_id" json:"pipeline_id"`
+	Payload               []byte             `db:"payload" json:"payload"`
+	OriginalPayload       []byte             `db:"original_payload" json:"original_payload"`
+	Metadata              []byte             `db:"metadata" json:"metadata"`
+	FilterResults         []byte             `db:"filter_results" json:"filter_results"`
+	TransformationResults []byte             `db:"transformation_results" json:"transformation_results"`
+	Status                WebhookStatus      `db:"status" json:"status"`
+	ErrorMessage          pgtype.Text        `db:"error_message" json:"error_message"`
+	ScheduledAt           pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
+	ProcessedAt           pgtype.Timestamptz `db:"processed_at" json:"processed_at"`
+	CreatedAt             pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	PipelineName          pgtype.Text        `db:"pipeline_name" json:"pipeline_name"`
+	SourceName            pgtype.Text        `db:"source_name" json:"source_name"`
+	DestinationName       pgtype.Text        `db:"destination_name" json:"destination_name"`
+}
+
+func (q *Queries) GetWebhookEventWithDetails(ctx context.Context, id uuid.UUID) (GetWebhookEventWithDetailsRow, error) {
+	row := q.db.QueryRow(ctx, getWebhookEventWithDetails, id)
+	var i GetWebhookEventWithDetailsRow
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.PipelineID,
+		&i.Payload,
+		&i.OriginalPayload,
+		&i.Metadata,
+		&i.FilterResults,
+		&i.TransformationResults,
+		&i.Status,
+		&i.ErrorMessage,
+		&i.ScheduledAt,
+		&i.ProcessedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PipelineName,
+		&i.SourceName,
+		&i.DestinationName,
+	)
+	return i, err
+}
+
+const getWebhookEventWithPipeline = `-- name: GetWebhookEventWithPipeline :one
+SELECT 
+    we.id, we.source_id, we.pipeline_id, we.payload, we.original_payload, we.metadata, we.filter_results, we.transformation_results, we.status, we.error_message, we.scheduled_at, we.processed_at, we.created_at, we.updated_at,
+    p.name as pipeline_name,
+    s.name as source_name,
+    d.name as destination_name
+FROM webhook_events we
+LEFT JOIN pipelines p ON we.pipeline_id = p.id
+LEFT JOIN sources s ON we.source_id = s.id
+LEFT JOIN destinations d ON p.destination_id = d.id
+WHERE we.id = $1
+`
+
+type GetWebhookEventWithPipelineRow struct {
+	ID                    uuid.UUID          `db:"id" json:"id"`
+	SourceID              uuid.UUID          `db:"source_id" json:"source_id"`
+	PipelineID            pgtype.UUID        `db:"pipeline_id" json:"pipeline_id"`
+	Payload               []byte             `db:"payload" json:"payload"`
+	OriginalPayload       []byte             `db:"original_payload" json:"original_payload"`
+	Metadata              []byte             `db:"metadata" json:"metadata"`
+	FilterResults         []byte             `db:"filter_results" json:"filter_results"`
+	TransformationResults []byte             `db:"transformation_results" json:"transformation_results"`
+	Status                WebhookStatus      `db:"status" json:"status"`
+	ErrorMessage          pgtype.Text        `db:"error_message" json:"error_message"`
+	ScheduledAt           pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
+	ProcessedAt           pgtype.Timestamptz `db:"processed_at" json:"processed_at"`
+	CreatedAt             pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	PipelineName          pgtype.Text        `db:"pipeline_name" json:"pipeline_name"`
+	SourceName            pgtype.Text        `db:"source_name" json:"source_name"`
+	DestinationName       pgtype.Text        `db:"destination_name" json:"destination_name"`
+}
+
+func (q *Queries) GetWebhookEventWithPipeline(ctx context.Context, id uuid.UUID) (GetWebhookEventWithPipelineRow, error) {
+	row := q.db.QueryRow(ctx, getWebhookEventWithPipeline, id)
+	var i GetWebhookEventWithPipelineRow
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.PipelineID,
+		&i.Payload,
+		&i.OriginalPayload,
+		&i.Metadata,
+		&i.FilterResults,
+		&i.TransformationResults,
+		&i.Status,
+		&i.ErrorMessage,
+		&i.ScheduledAt,
+		&i.ProcessedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PipelineName,
+		&i.SourceName,
+		&i.DestinationName,
+	)
+	return i, err
+}
+
+const listFailedWebhookEvents = `-- name: ListFailedWebhookEvents :many
+SELECT id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at FROM webhook_events
+WHERE status = 'failed'
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListFailedWebhookEvents(ctx context.Context) ([]WebhookEvent, error) {
+	rows, err := q.db.Query(ctx, listFailedWebhookEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WebhookEvent{}
+	for rows.Next() {
+		var i WebhookEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.PipelineID,
+			&i.Payload,
+			&i.OriginalPayload,
+			&i.Metadata,
+			&i.FilterResults,
+			&i.TransformationResults,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.ScheduledAt,
+			&i.ProcessedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingWebhookEvents = `-- name: ListPendingWebhookEvents :many
+SELECT id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at FROM webhook_events
+WHERE status = 'pending' AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+ORDER BY created_at ASC
+LIMIT $1
+`
+
+func (q *Queries) ListPendingWebhookEvents(ctx context.Context, limit int32) ([]WebhookEvent, error) {
+	rows, err := q.db.Query(ctx, listPendingWebhookEvents, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WebhookEvent{}
+	for rows.Next() {
+		var i WebhookEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.PipelineID,
+			&i.Payload,
+			&i.OriginalPayload,
+			&i.Metadata,
+			&i.FilterResults,
+			&i.TransformationResults,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.ScheduledAt,
+			&i.ProcessedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWebhookEventsByPipeline = `-- name: ListWebhookEventsByPipeline :many
+SELECT id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at FROM webhook_events
+WHERE pipeline_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListWebhookEventsByPipeline(ctx context.Context, pipelineID pgtype.UUID) ([]WebhookEvent, error) {
+	rows, err := q.db.Query(ctx, listWebhookEventsByPipeline, pipelineID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WebhookEvent{}
+	for rows.Next() {
+		var i WebhookEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.PipelineID,
+			&i.Payload,
+			&i.OriginalPayload,
+			&i.Metadata,
+			&i.FilterResults,
+			&i.TransformationResults,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.ScheduledAt,
+			&i.ProcessedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWebhookEventsBySource = `-- name: ListWebhookEventsBySource :many
-SELECT id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at FROM webhook_events
+SELECT id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at FROM webhook_events
 WHERE source_id = $1
 ORDER BY created_at DESC
 `
@@ -91,11 +353,16 @@ func (q *Queries) ListWebhookEventsBySource(ctx context.Context, sourceID uuid.U
 		if err := rows.Scan(
 			&i.ID,
 			&i.SourceID,
+			&i.PipelineID,
 			&i.Payload,
+			&i.OriginalPayload,
 			&i.Metadata,
-			&i.AppliedRuleVersionID,
+			&i.FilterResults,
+			&i.TransformationResults,
 			&i.Status,
+			&i.ErrorMessage,
 			&i.ScheduledAt,
+			&i.ProcessedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -110,7 +377,7 @@ func (q *Queries) ListWebhookEventsBySource(ctx context.Context, sourceID uuid.U
 }
 
 const listWebhookEventsBySourceAndStatus = `-- name: ListWebhookEventsBySourceAndStatus :many
-SELECT id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at FROM webhook_events
+SELECT id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at FROM webhook_events
 WHERE source_id = $1 AND status = $2
 ORDER BY created_at DESC
 `
@@ -127,11 +394,16 @@ func (q *Queries) ListWebhookEventsBySourceAndStatus(ctx context.Context, source
 		if err := rows.Scan(
 			&i.ID,
 			&i.SourceID,
+			&i.PipelineID,
 			&i.Payload,
+			&i.OriginalPayload,
 			&i.Metadata,
-			&i.AppliedRuleVersionID,
+			&i.FilterResults,
+			&i.TransformationResults,
 			&i.Status,
+			&i.ErrorMessage,
 			&i.ScheduledAt,
+			&i.ProcessedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -149,30 +421,75 @@ const updateWebhookEvent = `-- name: UpdateWebhookEvent :one
 UPDATE webhook_events SET
     status = COALESCE($2, status),
     metadata = COALESCE($3, metadata),
-    applied_rule_version_id = COALESCE($4, applied_rule_version_id),
-    scheduled_at = COALESCE($5, scheduled_at),
+    pipeline_id = COALESCE($4, pipeline_id),
+    filter_results = COALESCE($5, filter_results),
+    transformation_results = COALESCE($6, transformation_results),
+    error_message = COALESCE($7, error_message),
+    scheduled_at = COALESCE($8, scheduled_at),
+    processed_at = COALESCE($9, processed_at),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, source_id, payload, metadata, applied_rule_version_id, status, scheduled_at, created_at, updated_at
+RETURNING id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at
 `
 
-func (q *Queries) UpdateWebhookEvent(ctx context.Context, iD uuid.UUID, status WebhookStatus, metadata []byte, appliedRuleVersionID pgtype.UUID, scheduledAt pgtype.Timestamptz) (WebhookEvent, error) {
+func (q *Queries) UpdateWebhookEvent(ctx context.Context, iD uuid.UUID, status WebhookStatus, metadata []byte, pipelineID pgtype.UUID, filterResults []byte, transformationResults []byte, errorMessage pgtype.Text, scheduledAt pgtype.Timestamptz, processedAt pgtype.Timestamptz) (WebhookEvent, error) {
 	row := q.db.QueryRow(ctx, updateWebhookEvent,
 		iD,
 		status,
 		metadata,
-		appliedRuleVersionID,
+		pipelineID,
+		filterResults,
+		transformationResults,
+		errorMessage,
 		scheduledAt,
+		processedAt,
 	)
 	var i WebhookEvent
 	err := row.Scan(
 		&i.ID,
 		&i.SourceID,
+		&i.PipelineID,
 		&i.Payload,
+		&i.OriginalPayload,
 		&i.Metadata,
-		&i.AppliedRuleVersionID,
+		&i.FilterResults,
+		&i.TransformationResults,
 		&i.Status,
+		&i.ErrorMessage,
 		&i.ScheduledAt,
+		&i.ProcessedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateWebhookEventStatus = `-- name: UpdateWebhookEventStatus :one
+UPDATE webhook_events SET
+    status = $2,
+    error_message = COALESCE($3, error_message),
+    processed_at = CASE WHEN $2 IN ('delivered', 'failed', 'filtered') THEN NOW() ELSE processed_at END,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, source_id, pipeline_id, payload, original_payload, metadata, filter_results, transformation_results, status, error_message, scheduled_at, processed_at, created_at, updated_at
+`
+
+func (q *Queries) UpdateWebhookEventStatus(ctx context.Context, iD uuid.UUID, status WebhookStatus, errorMessage pgtype.Text) (WebhookEvent, error) {
+	row := q.db.QueryRow(ctx, updateWebhookEventStatus, iD, status, errorMessage)
+	var i WebhookEvent
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.PipelineID,
+		&i.Payload,
+		&i.OriginalPayload,
+		&i.Metadata,
+		&i.FilterResults,
+		&i.TransformationResults,
+		&i.Status,
+		&i.ErrorMessage,
+		&i.ScheduledAt,
+		&i.ProcessedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

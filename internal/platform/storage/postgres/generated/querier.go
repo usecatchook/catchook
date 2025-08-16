@@ -13,45 +13,84 @@ import (
 
 type Querier interface {
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
+	CountFiltersByPipeline(ctx context.Context, pipelineID uuid.UUID) (int64, error)
+	CountPipelinesByUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountSources(ctx context.Context) (int64, error)
+	CountTransformationsByPipeline(ctx context.Context, pipelineID uuid.UUID) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CountWebhookEventsByStatus(ctx context.Context, status WebhookStatus) (int64, error)
 	CreateDelivery(ctx context.Context, webhookEventID uuid.UUID, destinationID uuid.UUID, status DeliveryStatus, responseCode pgtype.Int4, column5 interface{}, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error)
 	CreateDestination(ctx context.Context, userID uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, column5 interface{}, column6 interface{}, column7 interface{}, column8 interface{}) (Destination, error)
-	CreateRule(ctx context.Context, userID uuid.UUID, sourceID uuid.UUID, destinationID uuid.UUID, name string, column5 interface{}, column6 interface{}, mode RuleMode, column8 interface{}, code pgtype.Text) (Rule, error)
+	CreateFilter(ctx context.Context, pipelineID uuid.UUID, name string, column3 interface{}, filterType FilterType, column5 interface{}, column6 interface{}, code pgtype.Text, column8 interface{}, column9 interface{}) (Filter, error)
+	CreatePipeline(ctx context.Context, userID uuid.UUID, sourceID uuid.UUID, destinationID uuid.UUID, name string, column5 interface{}, column6 interface{}, column7 interface{}) (Pipeline, error)
 	CreateSource(ctx context.Context, name string, userID uuid.UUID, description string, protocol ProtocolType, authType AuthType, authConfig []byte, column7 interface{}) (Source, error)
+	CreateTransformation(ctx context.Context, pipelineID uuid.UUID, name string, column3 interface{}, transformationType TransformationType, column5 interface{}, column6 interface{}, code pgtype.Text, column8 interface{}, column9 interface{}) (Transformation, error)
 	CreateUser(ctx context.Context, email string, role UserRole, passwordHash string, firstName string, lastName string, isActive bool) (User, error)
-	CreateWebhookEvent(ctx context.Context, sourceID uuid.UUID, payload []byte, column3 interface{}, appliedRuleVersionID pgtype.UUID, status WebhookStatus, scheduledAt pgtype.Timestamptz) (WebhookEvent, error)
+	CreateWebhookEvent(ctx context.Context, sourceID uuid.UUID, pipelineID pgtype.UUID, payload []byte, originalPayload []byte, column5 interface{}, column6 interface{}, scheduledAt pgtype.Timestamptz) (WebhookEvent, error)
+	CreateWebhookStep(ctx context.Context, webhookEventID uuid.UUID, pipelineID pgtype.UUID, stepType StepType, stepName string, stepID pgtype.UUID, executionOrder int32, column7 interface{}, column8 interface{}, column9 interface{}, errorMessage pgtype.Text, durationMs pgtype.Int4, column12 interface{}, completedAt pgtype.Timestamptz) (WebhookStep, error)
 	DeactivateUser(ctx context.Context, id uuid.UUID) error
 	DeleteDelivery(ctx context.Context, id uuid.UUID) error
 	DeleteDestination(ctx context.Context, id uuid.UUID) error
-	DeleteRule(ctx context.Context, id uuid.UUID) error
+	DeleteFilter(ctx context.Context, id uuid.UUID) error
+	DeletePipeline(ctx context.Context, id uuid.UUID) error
 	DeleteSource(ctx context.Context, id uuid.UUID) error
+	DeleteTransformation(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWebhookEvent(ctx context.Context, id uuid.UUID) error
+	DeleteWebhookStep(ctx context.Context, id uuid.UUID) error
+	GetBodyTransformations(ctx context.Context, pipelineID uuid.UUID) ([]Transformation, error)
 	GetDeliveryByID(ctx context.Context, id uuid.UUID) (Delivery, error)
 	GetDestinationByID(ctx context.Context, id uuid.UUID) (Destination, error)
-	GetRuleByID(ctx context.Context, id uuid.UUID) (Rule, error)
+	GetFailedWebhookSteps(ctx context.Context, limit int32) ([]GetFailedWebhookStepsRow, error)
+	GetFilterByID(ctx context.Context, id uuid.UUID) (Filter, error)
+	GetFiltersByType(ctx context.Context, pipelineID uuid.UUID, filterType FilterType) ([]Filter, error)
+	GetHeaderTransformations(ctx context.Context, pipelineID uuid.UUID) ([]Transformation, error)
+	GetPipelineByID(ctx context.Context, id uuid.UUID) (Pipeline, error)
+	GetPipelineWithDetails(ctx context.Context, id uuid.UUID) (GetPipelineWithDetailsRow, error)
 	GetSourceByID(ctx context.Context, id uuid.UUID) (Source, error)
 	GetSourceByName(ctx context.Context, name string) (Source, error)
+	GetTransformationByID(ctx context.Context, id uuid.UUID) (Transformation, error)
+	GetTransformationsByType(ctx context.Context, pipelineID uuid.UUID, transformationType TransformationType) ([]Transformation, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByEmailWithPassword(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetWebhookEventByID(ctx context.Context, id uuid.UUID) (WebhookEvent, error)
+	GetWebhookEventWithDetails(ctx context.Context, id uuid.UUID) (GetWebhookEventWithDetailsRow, error)
+	GetWebhookEventWithPipeline(ctx context.Context, id uuid.UUID) (GetWebhookEventWithPipelineRow, error)
+	GetWebhookStepByID(ctx context.Context, id uuid.UUID) (WebhookStep, error)
+	GetWebhookTraceComplete(ctx context.Context, webhookEventID uuid.UUID) ([]GetWebhookTraceCompleteRow, error)
 	ListActiveDestinationsByUser(ctx context.Context, userID uuid.UUID) ([]Destination, error)
-	ListActiveRulesByUser(ctx context.Context, userID uuid.UUID) ([]Rule, error)
+	ListActiveFiltersByPipeline(ctx context.Context, pipelineID uuid.UUID) ([]Filter, error)
+	ListActivePipelinesBySource(ctx context.Context, sourceID uuid.UUID) ([]Pipeline, error)
+	ListActiveTransformationsByPipeline(ctx context.Context, pipelineID uuid.UUID) ([]Transformation, error)
 	ListDeliveriesByWebhookEvent(ctx context.Context, webhookEventID uuid.UUID) ([]Delivery, error)
-	ListRulesBySourceAndDestination(ctx context.Context, sourceID uuid.UUID, destinationID uuid.UUID) ([]Rule, error)
+	ListFailedWebhookEvents(ctx context.Context) ([]WebhookEvent, error)
+	ListFiltersByPipeline(ctx context.Context, pipelineID uuid.UUID) ([]Filter, error)
+	ListPendingWebhookEvents(ctx context.Context, limit int32) ([]WebhookEvent, error)
+	ListPipelinesBySourceAndDestination(ctx context.Context, sourceID uuid.UUID, destinationID uuid.UUID) ([]Pipeline, error)
+	ListPipelinesByUser(ctx context.Context, userID uuid.UUID) ([]Pipeline, error)
 	ListSources(ctx context.Context, limit int32, offset int32) ([]Source, error)
+	ListTransformationsByPipeline(ctx context.Context, pipelineID uuid.UUID) ([]Transformation, error)
 	ListUsers(ctx context.Context, limit int32, offset int32) ([]User, error)
+	ListWebhookEventsByPipeline(ctx context.Context, pipelineID pgtype.UUID) ([]WebhookEvent, error)
 	ListWebhookEventsBySource(ctx context.Context, sourceID uuid.UUID) ([]WebhookEvent, error)
 	ListWebhookEventsBySourceAndStatus(ctx context.Context, sourceID uuid.UUID, status WebhookStatus) ([]WebhookEvent, error)
+	ListWebhookStepsByEvent(ctx context.Context, webhookEventID uuid.UUID) ([]WebhookStep, error)
+	ListWebhookStepsByEventAndType(ctx context.Context, webhookEventID uuid.UUID, stepType StepType) ([]WebhookStep, error)
+	ReorderFilters(ctx context.Context, iD uuid.UUID, executionOrder int32) error
+	ReorderTransformations(ctx context.Context, iD uuid.UUID, executionOrder int32) error
 	UpdateDelivery(ctx context.Context, iD uuid.UUID, status DeliveryStatus, responseCode pgtype.Int4, attempt pgtype.Int4, lastError pgtype.Text, scheduledAt pgtype.Timestamptz) (Delivery, error)
 	UpdateDestination(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, destinationType DestinationType, config []byte, isActive pgtype.Bool, delaySeconds pgtype.Int4, retryAttempts pgtype.Int4) (Destination, error)
-	UpdateRule(ctx context.Context, iD uuid.UUID, name string, version int32, isActive bool, mode RuleMode, config []byte, code pgtype.Text) (Rule, error)
+	UpdateFilter(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, filterType FilterType, mode FilterMode, config []byte, code pgtype.Text, executionOrder int32, isActive bool) (Filter, error)
+	UpdatePipeline(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, isActive bool, executionOrder int32) (Pipeline, error)
 	UpdateSource(ctx context.Context, iD uuid.UUID, name string, description string, protocol ProtocolType, authType AuthType, authConfig []byte, isActive pgtype.Bool) (Source, error)
+	UpdateTransformation(ctx context.Context, iD uuid.UUID, name string, description pgtype.Text, transformationType TransformationType, mode TransformationMode, config []byte, code pgtype.Text, executionOrder int32, isActive bool) (Transformation, error)
 	UpdateUser(ctx context.Context, iD uuid.UUID, role UserRole, firstName string, lastName string) (User, error)
 	UpdateUserPassword(ctx context.Context, iD uuid.UUID, passwordHash string) (User, error)
-	UpdateWebhookEvent(ctx context.Context, iD uuid.UUID, status WebhookStatus, metadata []byte, appliedRuleVersionID pgtype.UUID, scheduledAt pgtype.Timestamptz) (WebhookEvent, error)
+	UpdateWebhookEvent(ctx context.Context, iD uuid.UUID, status WebhookStatus, metadata []byte, pipelineID pgtype.UUID, filterResults []byte, transformationResults []byte, errorMessage pgtype.Text, scheduledAt pgtype.Timestamptz, processedAt pgtype.Timestamptz) (WebhookEvent, error)
+	UpdateWebhookEventStatus(ctx context.Context, iD uuid.UUID, status WebhookStatus, errorMessage pgtype.Text) (WebhookEvent, error)
+	UpdateWebhookStep(ctx context.Context, iD uuid.UUID, status StepStatus, outputData []byte, errorMessage pgtype.Text, durationMs pgtype.Int4, completedAt pgtype.Timestamptz) (WebhookStep, error)
+	UpdateWebhookStepStatus(ctx context.Context, iD uuid.UUID, status StepStatus, errorMessage pgtype.Text) (WebhookStep, error)
 }
 
 var _ Querier = (*Queries)(nil)

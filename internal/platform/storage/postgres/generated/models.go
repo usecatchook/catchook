@@ -147,6 +147,92 @@ func (ns NullDestinationType) Value() (driver.Value, error) {
 	return string(ns.DestinationType), nil
 }
 
+type FilterMode string
+
+const (
+	FilterModeNocode FilterMode = "nocode"
+	FilterModeCode   FilterMode = "code"
+)
+
+func (e *FilterMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = FilterMode(s)
+	case string:
+		*e = FilterMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for FilterMode: %T", src)
+	}
+	return nil
+}
+
+type NullFilterMode struct {
+	FilterMode FilterMode `json:"filter_mode"`
+	Valid      bool       `json:"valid"` // Valid is true if FilterMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFilterMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.FilterMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.FilterMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFilterMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.FilterMode), nil
+}
+
+type FilterType string
+
+const (
+	FilterTypeCondition  FilterType = "condition"
+	FilterTypeJavascript FilterType = "javascript"
+	FilterTypeJsonpath   FilterType = "jsonpath"
+	FilterTypeRegex      FilterType = "regex"
+)
+
+func (e *FilterType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = FilterType(s)
+	case string:
+		*e = FilterType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for FilterType: %T", src)
+	}
+	return nil
+}
+
+type NullFilterType struct {
+	FilterType FilterType `json:"filter_type"`
+	Valid      bool       `json:"valid"` // Valid is true if FilterType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFilterType) Scan(value interface{}) error {
+	if value == nil {
+		ns.FilterType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.FilterType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFilterType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.FilterType), nil
+}
+
 type ProtocolType string
 
 const (
@@ -191,46 +277,184 @@ func (ns NullProtocolType) Value() (driver.Value, error) {
 	return string(ns.ProtocolType), nil
 }
 
-type RuleMode string
+type StepStatus string
 
 const (
-	RuleModeNocode RuleMode = "nocode"
-	RuleModeCode   RuleMode = "code"
+	StepStatusPending StepStatus = "pending"
+	StepStatusSuccess StepStatus = "success"
+	StepStatusFailed  StepStatus = "failed"
+	StepStatusSkipped StepStatus = "skipped"
 )
 
-func (e *RuleMode) Scan(src interface{}) error {
+func (e *StepStatus) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = RuleMode(s)
+		*e = StepStatus(s)
 	case string:
-		*e = RuleMode(s)
+		*e = StepStatus(s)
 	default:
-		return fmt.Errorf("unsupported scan type for RuleMode: %T", src)
+		return fmt.Errorf("unsupported scan type for StepStatus: %T", src)
 	}
 	return nil
 }
 
-type NullRuleMode struct {
-	RuleMode RuleMode `json:"rule_mode"`
-	Valid    bool     `json:"valid"` // Valid is true if RuleMode is not NULL
+type NullStepStatus struct {
+	StepStatus StepStatus `json:"step_status"`
+	Valid      bool       `json:"valid"` // Valid is true if StepStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullRuleMode) Scan(value interface{}) error {
+func (ns *NullStepStatus) Scan(value interface{}) error {
 	if value == nil {
-		ns.RuleMode, ns.Valid = "", false
+		ns.StepStatus, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.RuleMode.Scan(value)
+	return ns.StepStatus.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullRuleMode) Value() (driver.Value, error) {
+func (ns NullStepStatus) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.RuleMode), nil
+	return string(ns.StepStatus), nil
+}
+
+type StepType string
+
+const (
+	StepTypeAuth           StepType = "auth"
+	StepTypeFilter         StepType = "filter"
+	StepTypeTransformation StepType = "transformation"
+	StepTypeDelivery       StepType = "delivery"
+)
+
+func (e *StepType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StepType(s)
+	case string:
+		*e = StepType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StepType: %T", src)
+	}
+	return nil
+}
+
+type NullStepType struct {
+	StepType StepType `json:"step_type"`
+	Valid    bool     `json:"valid"` // Valid is true if StepType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStepType) Scan(value interface{}) error {
+	if value == nil {
+		ns.StepType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StepType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStepType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StepType), nil
+}
+
+type TransformationMode string
+
+const (
+	TransformationModeNocode TransformationMode = "nocode"
+	TransformationModeCode   TransformationMode = "code"
+)
+
+func (e *TransformationMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TransformationMode(s)
+	case string:
+		*e = TransformationMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TransformationMode: %T", src)
+	}
+	return nil
+}
+
+type NullTransformationMode struct {
+	TransformationMode TransformationMode `json:"transformation_mode"`
+	Valid              bool               `json:"valid"` // Valid is true if TransformationMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTransformationMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.TransformationMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TransformationMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTransformationMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TransformationMode), nil
+}
+
+type TransformationType string
+
+const (
+	TransformationTypeHeaderAdd    TransformationType = "header_add"
+	TransformationTypeHeaderRemove TransformationType = "header_remove"
+	TransformationTypeHeaderModify TransformationType = "header_modify"
+	TransformationTypeBodyAdd      TransformationType = "body_add"
+	TransformationTypeBodyRemove   TransformationType = "body_remove"
+	TransformationTypeBodyModify   TransformationType = "body_modify"
+	TransformationTypeFormatJson   TransformationType = "format_json"
+	TransformationTypeFormatXml    TransformationType = "format_xml"
+	TransformationTypeJavascript   TransformationType = "javascript"
+	TransformationTypeJsonpath     TransformationType = "jsonpath"
+)
+
+func (e *TransformationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TransformationType(s)
+	case string:
+		*e = TransformationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TransformationType: %T", src)
+	}
+	return nil
+}
+
+type NullTransformationType struct {
+	TransformationType TransformationType `json:"transformation_type"`
+	Valid              bool               `json:"valid"` // Valid is true if TransformationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTransformationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.TransformationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TransformationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTransformationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TransformationType), nil
 }
 
 type UserRole string
@@ -279,11 +503,12 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 type WebhookStatus string
 
 const (
-	WebhookStatusPending   WebhookStatus = "pending"
-	WebhookStatusFiltered  WebhookStatus = "filtered"
-	WebhookStatusDelayed   WebhookStatus = "delayed"
-	WebhookStatusDelivered WebhookStatus = "delivered"
-	WebhookStatusFailed    WebhookStatus = "failed"
+	WebhookStatusPending     WebhookStatus = "pending"
+	WebhookStatusFiltered    WebhookStatus = "filtered"
+	WebhookStatusTransformed WebhookStatus = "transformed"
+	WebhookStatusDelayed     WebhookStatus = "delayed"
+	WebhookStatusDelivered   WebhookStatus = "delivered"
+	WebhookStatusFailed      WebhookStatus = "failed"
 )
 
 func (e *WebhookStatus) Scan(src interface{}) error {
@@ -348,19 +573,32 @@ type Destination struct {
 	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
-type Rule struct {
-	ID            uuid.UUID          `db:"id" json:"id"`
-	UserID        uuid.UUID          `db:"user_id" json:"user_id"`
-	SourceID      uuid.UUID          `db:"source_id" json:"source_id"`
-	DestinationID uuid.UUID          `db:"destination_id" json:"destination_id"`
-	Name          string             `db:"name" json:"name"`
-	Version       int32              `db:"version" json:"version"`
-	IsActive      bool               `db:"is_active" json:"is_active"`
-	Mode          RuleMode           `db:"mode" json:"mode"`
-	Config        []byte             `db:"config" json:"config"`
-	Code          pgtype.Text        `db:"code" json:"code"`
-	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+type Filter struct {
+	ID             uuid.UUID          `db:"id" json:"id"`
+	PipelineID     uuid.UUID          `db:"pipeline_id" json:"pipeline_id"`
+	Name           string             `db:"name" json:"name"`
+	Description    pgtype.Text        `db:"description" json:"description"`
+	FilterType     FilterType         `db:"filter_type" json:"filter_type"`
+	Mode           FilterMode         `db:"mode" json:"mode"`
+	Config         []byte             `db:"config" json:"config"`
+	Code           pgtype.Text        `db:"code" json:"code"`
+	IsActive       bool               `db:"is_active" json:"is_active"`
+	ExecutionOrder int32              `db:"execution_order" json:"execution_order"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type Pipeline struct {
+	ID             uuid.UUID          `db:"id" json:"id"`
+	UserID         uuid.UUID          `db:"user_id" json:"user_id"`
+	SourceID       uuid.UUID          `db:"source_id" json:"source_id"`
+	DestinationID  uuid.UUID          `db:"destination_id" json:"destination_id"`
+	Name           string             `db:"name" json:"name"`
+	Description    pgtype.Text        `db:"description" json:"description"`
+	IsActive       bool               `db:"is_active" json:"is_active"`
+	ExecutionOrder int32              `db:"execution_order" json:"execution_order"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type Source struct {
@@ -376,6 +614,21 @@ type Source struct {
 	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
+type Transformation struct {
+	ID                 uuid.UUID          `db:"id" json:"id"`
+	PipelineID         uuid.UUID          `db:"pipeline_id" json:"pipeline_id"`
+	Name               string             `db:"name" json:"name"`
+	Description        pgtype.Text        `db:"description" json:"description"`
+	TransformationType TransformationType `db:"transformation_type" json:"transformation_type"`
+	Mode               TransformationMode `db:"mode" json:"mode"`
+	Config             []byte             `db:"config" json:"config"`
+	Code               pgtype.Text        `db:"code" json:"code"`
+	IsActive           bool               `db:"is_active" json:"is_active"`
+	ExecutionOrder     int32              `db:"execution_order" json:"execution_order"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type User struct {
 	ID           uuid.UUID          `db:"id" json:"id"`
 	Email        string             `db:"email" json:"email"`
@@ -389,13 +642,36 @@ type User struct {
 }
 
 type WebhookEvent struct {
-	ID                   uuid.UUID          `db:"id" json:"id"`
-	SourceID             uuid.UUID          `db:"source_id" json:"source_id"`
-	Payload              []byte             `db:"payload" json:"payload"`
-	Metadata             []byte             `db:"metadata" json:"metadata"`
-	AppliedRuleVersionID pgtype.UUID        `db:"applied_rule_version_id" json:"applied_rule_version_id"`
-	Status               WebhookStatus      `db:"status" json:"status"`
-	ScheduledAt          pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
-	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt            pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                    uuid.UUID          `db:"id" json:"id"`
+	SourceID              uuid.UUID          `db:"source_id" json:"source_id"`
+	PipelineID            pgtype.UUID        `db:"pipeline_id" json:"pipeline_id"`
+	Payload               []byte             `db:"payload" json:"payload"`
+	OriginalPayload       []byte             `db:"original_payload" json:"original_payload"`
+	Metadata              []byte             `db:"metadata" json:"metadata"`
+	FilterResults         []byte             `db:"filter_results" json:"filter_results"`
+	TransformationResults []byte             `db:"transformation_results" json:"transformation_results"`
+	Status                WebhookStatus      `db:"status" json:"status"`
+	ErrorMessage          pgtype.Text        `db:"error_message" json:"error_message"`
+	ScheduledAt           pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
+	ProcessedAt           pgtype.Timestamptz `db:"processed_at" json:"processed_at"`
+	CreatedAt             pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type WebhookStep struct {
+	ID             uuid.UUID          `db:"id" json:"id"`
+	WebhookEventID uuid.UUID          `db:"webhook_event_id" json:"webhook_event_id"`
+	PipelineID     pgtype.UUID        `db:"pipeline_id" json:"pipeline_id"`
+	StepType       StepType           `db:"step_type" json:"step_type"`
+	StepName       string             `db:"step_name" json:"step_name"`
+	StepID         pgtype.UUID        `db:"step_id" json:"step_id"`
+	ExecutionOrder int32              `db:"execution_order" json:"execution_order"`
+	Status         StepStatus         `db:"status" json:"status"`
+	InputData      []byte             `db:"input_data" json:"input_data"`
+	OutputData     []byte             `db:"output_data" json:"output_data"`
+	ErrorMessage   pgtype.Text        `db:"error_message" json:"error_message"`
+	DurationMs     pgtype.Int4        `db:"duration_ms" json:"duration_ms"`
+	StartedAt      pgtype.Timestamptz `db:"started_at" json:"started_at"`
+	CompletedAt    pgtype.Timestamptz `db:"completed_at" json:"completed_at"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
