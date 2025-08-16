@@ -5,72 +5,99 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/theotruvelot/catchook/internal/domain/user"
-	"github.com/theotruvelot/catchook/internal/middleware"
-	"github.com/theotruvelot/catchook/internal/platform/server"
+	"github.com/theotruvelot/catchook/internal/platform/http/middleware"
+	user "github.com/theotruvelot/catchook/internal/user/domain"
 	"github.com/theotruvelot/catchook/pkg/response"
 	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
-	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
-func (s *server.Server) handleGetMe(c *fiber.Ctx) error {
-	currentUser := middleware.GetUser(c)
-	if currentUser == nil {
+// Handler holds the user-specific dependencies
+type Handler struct {
+	userService user.Service
+	validator   *validatorpkg.Validator
+}
+
+// NewHandler creates a new user handler
+func NewHandler(userService user.Service, validator *validatorpkg.Validator) *Handler {
+	return &Handler{
+		userService: userService,
+		validator:   validator,
+	}
+}
+
+func (h *Handler) GetMe(c *fiber.Ctx) error {
+	ctx := middleware.GetContextWithRequestID(c)
+
+	currentUser, err := middleware.GetAuthUser(c)
+	if err != nil {
 		return response.Unauthorized(c, "invalid session")
 	}
 
-	ctx := middleware.GetContextWithRequestID(c)
-	userResp, err := s.container.UserService.GetByID(ctx, currentUser.ID)
+	userResp, err := h.userService.GetByID(ctx, currentUser.ID)
 	if err != nil {
 		return response.NotFound(c, "user not found")
 	}
 
-	return response.Success(c, userResp, "user profile")
+	return response.Success(c, userResp.ToResponse(), "user profile")
 }
 
-func (s *server.Server) handleGetProfile(c *fiber.Ctx) error {
+func (h *Handler) GetProfile(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
 	userID := c.Params("id")
 	if userID == "" {
 		return response.BadRequest(c, "user_id is required", nil)
 	}
-	userResp, err := s.container.UserService.GetByID(ctx, userID)
+	userResp, err := h.userService.GetByID(ctx, userID)
 	if err != nil {
-		return response.NotFound(c, "user not found")
+		if errors.Is(err, user.ErrUserNotFound) {
+			return response.NotFound(c, "user not found")
+		}
+		return response.InternalError(c, "failed to get user profile")
 	}
-	return response.Success(c, userResp, "user profile")
+	return response.Success(c, userResp.ToResponse(), "user profile")
 }
 
-func (s *server.Server) handleUpdateProfile(c *fiber.Ctx) error {
+func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
 	userID := c.Params("id")
 	if userID == "" {
 		return response.BadRequest(c, "user_id is required", nil)
 	}
 
-	currentUser := middleware.GetUser(c)
-	if currentUser == nil {
+	currentUser, err := middleware.GetAuthUser(c)
+	if err != nil {
 		return response.Unauthorized(c, "invalid session")
 	}
-	if currentUser.ID != userID && currentUser.Role != "admin" {
-		return response.Forbidden(c, "can only update own profile")
-	}
+
 	var req user.UpdateRequest
-	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
+	if err := h.validator.ParseAndValidate(c, &req); err != nil {
 		var verr *validatorpkg.ValidationErrors
 		if errors.As(err, &verr) {
 			return response.ValidationFailed(c, verr.Errors)
 		}
 		return response.BadRequest(c, err.Error(), nil)
 	}
-	userResp, err := s.container.UserService.Update(ctx, userID, req, currentUser)
+
+	// Convert middleware User to domain CurrentUser
+	domainUser := &user.CurrentUser{
+		ID:   currentUser.ID,
+		Role: string(currentUser.Role),
+	}
+
+	userResp, err := h.userService.Update(ctx, userID, req, domainUser)
 	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			return response.NotFound(c, "user not found")
+		}
+		if errors.Is(err, user.ErrInsufficientPermissions) {
+			return response.Forbidden(c, "insufficient permissions")
+		}
 		return response.InternalError(c, "update failed")
 	}
-	return response.Success(c, userResp, "profile updated")
+	return response.Success(c, userResp.ToResponse(), "profile updated")
 }
 
-func (s *server.Server) handleListUsers(c *fiber.Ctx) error {
+func (h *Handler) ListUsers(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "20"))
@@ -85,23 +112,30 @@ func (s *server.Server) handleListUsers(c *fiber.Ctx) error {
 		limit = 100
 	}
 
-	users, pagination, err := s.container.UserService.List(ctx, page, limit)
+	users, pagination, err := h.userService.List(ctx, page, limit)
 	if err != nil {
 		return response.InternalError(c, "failed to list users")
 	}
 
-	return response.Paginated(c, users, *pagination, "users list")
-}
-
-func (s *server.Server) handleCreateUser(c *fiber.Ctx) error {
-	ctx := middleware.GetContextWithRequestID(c)
-	currentUser := middleware.GetUser(c)
-	if currentUser == nil || currentUser.Role != generated.UserRoleAdmin {
-		return response.Forbidden(c, "only admins can create users")
+	// Convert to response format
+	userResponses := make([]*user.UserResponse, len(users))
+	for i, u := range users {
+		userResponses[i] = u.ToResponse()
 	}
 
+	listResp := &user.ListUsersResponse{
+		Users:      userResponses,
+		Pagination: pagination,
+	}
+
+	return response.Success(c, listResp, "users listed")
+}
+
+func (h *Handler) CreateUser(c *fiber.Ctx) error {
+	ctx := middleware.GetContextWithRequestID(c)
+
 	var req user.CreateRequest
-	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
+	if err := h.validator.ParseAndValidate(c, &req); err != nil {
 		var verr *validatorpkg.ValidationErrors
 		if errors.As(err, &verr) {
 			return response.ValidationFailed(c, verr.Errors)
@@ -109,7 +143,7 @@ func (s *server.Server) handleCreateUser(c *fiber.Ctx) error {
 		return response.BadRequest(c, err.Error(), nil)
 	}
 
-	newUser, err := s.container.UserService.Create(ctx, req)
+	newUser, err := h.userService.Create(ctx, req)
 	if err != nil {
 		switch {
 		case errors.Is(err, user.ErrEmailAlreadyExists):
@@ -119,5 +153,5 @@ func (s *server.Server) handleCreateUser(c *fiber.Ctx) error {
 		}
 	}
 
-	return response.Success(c, newUser, "user created")
+	return response.Success(c, newUser.ToResponse(), "user created")
 }

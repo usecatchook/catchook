@@ -5,27 +5,35 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/theotruvelot/catchook/internal/domain/source"
-	"github.com/theotruvelot/catchook/internal/middleware"
-	"github.com/theotruvelot/catchook/internal/platform/server"
+	"github.com/theotruvelot/catchook/internal/platform/http/middleware"
+	source "github.com/theotruvelot/catchook/internal/source/domain"
 	"github.com/theotruvelot/catchook/pkg/response"
 	"github.com/theotruvelot/catchook/pkg/tracer"
 	validatorpkg "github.com/theotruvelot/catchook/pkg/validator"
-	"github.com/theotruvelot/catchook/storage/postgres/generated"
 )
 
-func (s *server.Server) handleCreateSource(c *fiber.Ctx) error {
+// Handler holds the source-specific dependencies
+type Handler struct {
+	sourceService source.Service
+	validator     *validatorpkg.Validator
+}
+
+// NewHandler creates a new source handler
+func NewHandler(sourceService source.Service, validator *validatorpkg.Validator) *Handler {
+	return &Handler{
+		sourceService: sourceService,
+		validator:     validator,
+	}
+}
+
+func (h *Handler) CreateSource(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
 
 	ctx, span := tracer.StartSpan(ctx, "source.handler")
 	defer span.End()
-	currentUser := middleware.GetUser(c)
-	if currentUser == nil || currentUser.Role == generated.UserRoleViewer {
-		return response.Forbidden(c, "viewer cannot create sources")
-	}
 
 	var req source.CreateRequest
-	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
+	if err := h.validator.ParseAndValidate(c, &req); err != nil {
 		var verr *validatorpkg.ValidationErrors
 		if errors.As(err, &verr) {
 			return response.ValidationFailed(c, verr.Errors)
@@ -33,7 +41,7 @@ func (s *server.Server) handleCreateSource(c *fiber.Ctx) error {
 		return response.BadRequest(c, err.Error(), nil)
 	}
 
-	sourceResp, err := s.container.SourceService.Create(ctx, req, currentUser)
+	sourceResp, err := h.sourceService.Create(ctx, req)
 	if err != nil {
 		var verr *validatorpkg.ValidationErrors
 		switch {
@@ -54,7 +62,7 @@ func (s *server.Server) handleCreateSource(c *fiber.Ctx) error {
 	return response.Success(c, resp, "source created")
 }
 
-func (s *server.Server) handleGetSource(c *fiber.Ctx) error {
+func (h *Handler) GetSource(c *fiber.Ctx) error {
 	ctx, span := tracer.StartSpan(middleware.GetContextWithRequestID(c), "source.handler.get")
 	defer span.End()
 
@@ -62,9 +70,12 @@ func (s *server.Server) handleGetSource(c *fiber.Ctx) error {
 	if sourceID == "" {
 		return response.BadRequest(c, "source_id is required", nil)
 	}
-	sourceResp, err := s.container.SourceService.GetByID(ctx, sourceID)
+	sourceResp, err := h.sourceService.GetByID(ctx, sourceID)
 	if err != nil {
-		return response.NotFound(c, "source not found")
+		if errors.Is(err, source.ErrSourceNotFound) {
+			return response.NotFound(c, "source not found")
+		}
+		return response.InternalError(c, "failed to get source")
 	}
 
 	resp, err := sourceResp.ToResponse()
@@ -74,7 +85,7 @@ func (s *server.Server) handleGetSource(c *fiber.Ctx) error {
 	return response.Success(c, resp, "source")
 }
 
-func (s *server.Server) handleListSources(c *fiber.Ctx) error {
+func (h *Handler) ListSources(c *fiber.Ctx) error {
 	ctx, span := tracer.StartSpan(middleware.GetContextWithRequestID(c), "source.handler.list")
 	defer span.End()
 
@@ -91,23 +102,26 @@ func (s *server.Server) handleListSources(c *fiber.Ctx) error {
 		limit = 100
 	}
 
-	sources, pagination, err := s.container.SourceService.List(ctx, page, limit)
+	sources, pagination, err := h.sourceService.List(ctx, page, limit)
 	if err != nil {
 		return response.InternalError(c, "failed to list sources")
 	}
 
-	return response.Paginated(c, sources, *pagination, "sources list")
+	listResp := &source.ListSourcesResponse{
+		Sources:    sources,
+		Pagination: pagination,
+	}
+
+	return response.Success(c, listResp, "sources listed")
 }
 
-func (s *server.Server) handleUpdateSource(c *fiber.Ctx) error {
+func (h *Handler) UpdateSource(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
 	ctx, span := tracer.StartSpan(ctx, "source.handler.update")
 	defer span.End()
 
-	currentUser := middleware.GetUser(c)
-	if currentUser == nil || currentUser.Role == generated.UserRoleViewer {
-		return response.Forbidden(c, "viewer cannot update sources")
-	}
+	// L'auth est maintenant gérée par le middleware RequirePermission
+	// Plus besoin de vérifier manuellement l'authentification
 
 	sourceID := c.Params("id")
 	if sourceID == "" {
@@ -115,7 +129,7 @@ func (s *server.Server) handleUpdateSource(c *fiber.Ctx) error {
 	}
 
 	var req source.UpdateRequest
-	if err := s.container.Validator.ParseAndValidate(c, &req); err != nil {
+	if err := h.validator.ParseAndValidate(c, &req); err != nil {
 		var verr *validatorpkg.ValidationErrors
 		if errors.As(err, &verr) {
 			return response.ValidationFailed(c, verr.Errors)
@@ -123,7 +137,7 @@ func (s *server.Server) handleUpdateSource(c *fiber.Ctx) error {
 		return response.BadRequest(c, err.Error(), nil)
 	}
 
-	updated, err := s.container.SourceService.Update(ctx, sourceID, req, currentUser)
+	updated, err := h.sourceService.Update(ctx, sourceID, req)
 	if err != nil {
 		var verr *validatorpkg.ValidationErrors
 		switch {
@@ -146,22 +160,20 @@ func (s *server.Server) handleUpdateSource(c *fiber.Ctx) error {
 	return response.Success(c, resp, "source updated")
 }
 
-func (s *server.Server) handleDeleteSource(c *fiber.Ctx) error {
+func (h *Handler) DeleteSource(c *fiber.Ctx) error {
 	ctx := middleware.GetContextWithRequestID(c)
 	ctx, span := tracer.StartSpan(ctx, "source.handler.delete")
 	defer span.End()
 
-	currentUser := middleware.GetUser(c)
-	if currentUser == nil || currentUser.Role == generated.UserRoleViewer {
-		return response.Forbidden(c, "viewer cannot delete sources")
-	}
+	// L'auth est maintenant gérée par le middleware RequirePermission
+	// Plus besoin de vérifier manuellement l'authentification
 
 	sourceID := c.Params("id")
 	if sourceID == "" {
 		return response.BadRequest(c, "source_id is required", nil)
 	}
 
-	if err := s.container.SourceService.Delete(ctx, sourceID); err != nil {
+	if err := h.sourceService.Delete(ctx, sourceID); err != nil {
 		switch {
 		case errors.Is(err, source.ErrSourceNotFound):
 			return response.NotFound(c, "source not found")
@@ -170,5 +182,5 @@ func (s *server.Server) handleDeleteSource(c *fiber.Ctx) error {
 		}
 	}
 
-	return response.NoContent(c)
+	return response.Success(c, nil, "source deleted")
 }

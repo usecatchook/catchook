@@ -15,8 +15,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/theotruvelot/catchook/internal/platform/app"
 
+	authhttp "github.com/theotruvelot/catchook/internal/auth/transport/http"
 	"github.com/theotruvelot/catchook/internal/config"
+	healthhttp "github.com/theotruvelot/catchook/internal/health/transport/http"
 	"github.com/theotruvelot/catchook/internal/platform/http/middleware"
+	setuphttp "github.com/theotruvelot/catchook/internal/setup/transport/http"
+	sourcehttp "github.com/theotruvelot/catchook/internal/source/transport/http"
+	userhttp "github.com/theotruvelot/catchook/internal/user/transport/http"
 	"github.com/theotruvelot/catchook/pkg/logger"
 )
 
@@ -25,6 +30,13 @@ type Server struct {
 	container *app.Container
 	config    *config.Config
 	appLogger logger.Logger
+
+	// Handlers
+	authHandler   *authhttp.Handler
+	healthHandler *healthhttp.Handler
+	setupHandler  *setuphttp.Handler
+	userHandler   *userhttp.Handler
+	sourceHandler *sourcehttp.Handler
 }
 
 func NewServer(container *app.Container) *Server {
@@ -32,6 +44,13 @@ func NewServer(container *app.Container) *Server {
 		container: container,
 		config:    container.Config,
 		appLogger: container.AppLogger,
+
+		// Initialize handlers with their dependencies
+		authHandler:   authhttp.NewHandler(container.AuthService, container.Validator),
+		healthHandler: healthhttp.NewHandler(container.HealthService),
+		setupHandler:  setuphttp.NewHandler(container.SetupService, container.Validator),
+		userHandler:   userhttp.NewHandler(container.UserService, container.Validator),
+		sourceHandler: sourcehttp.NewHandler(container.SourceService, container.Validator),
 	}
 
 	server.app = server.createFiberApp()

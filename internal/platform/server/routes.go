@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/theotruvelot/catchook/internal/platform/auth"
 	"github.com/theotruvelot/catchook/internal/platform/http/middleware"
 	"github.com/theotruvelot/catchook/pkg/response"
 )
@@ -12,7 +13,7 @@ func (s *Server) setupRoutes() {
 	api := s.app.Group("/api/v1")
 
 	// Health check
-	api.Get("/health", s.handleHealthCheck)
+	api.Get("/health", s.healthHandler.HealthCheck)
 
 	// Auth routes
 	s.setupAuthRoutes(api)
@@ -39,9 +40,9 @@ func (s *Server) setupRoutes() {
 func (s *Server) setupAuthRoutes(api fiber.Router) {
 	auth := api.Group("/auth")
 
-	auth.Post("/login", s.handleLogin)
-	auth.Post("/refresh", s.handleRefreshSession)
-	auth.Post("/logout", s.handleLogout)
+	auth.Post("/login", s.authHandler.Login)
+	auth.Post("/refresh", s.authHandler.RefreshSession)
+	auth.Post("/logout", s.authHandler.Logout)
 }
 
 // setupUserRoutes configures user management routes
@@ -50,9 +51,9 @@ func (s *Server) setupUserRoutes(api fiber.Router) {
 
 	users.Use(middleware.SessionAuth(s.container.Session))
 
-	users.Get("/me", s.handleGetMe)
-	users.Get("/profile/:id", s.handleGetProfile)
-	users.Put("/profile/:id", s.handleUpdateProfile)
+	users.Get("/me", s.userHandler.GetMe)
+	users.Get("/profile/:id", s.userHandler.GetProfile)
+	users.Put("/profile/:id", s.userHandler.UpdateProfile)
 
 }
 
@@ -60,11 +61,11 @@ func (s *Server) setupAdminRoutes(api fiber.Router) {
 	admin := api.Group("/admin")
 
 	admin.Use(middleware.SessionAuth(s.container.Session))
-	admin.Use(middleware.RequireRoles("admin"))
+	admin.Use(middleware.RequireAdmin()) // Nouveau système plus élégant
 
 	//users management routes
-	admin.Get("/users", s.handleListUsers)
-	admin.Post("/users", s.handleCreateUser)
+	admin.Get("/users", s.userHandler.ListUsers)
+	admin.Post("/users", s.userHandler.CreateUser)
 	//admin.Put("/users/:id", s.handleUpdateUser) //TODO: Implement user update
 	//admin.Delete("/users/:id", s.handleDeleteUser) //TODO: Implement user delete
 }
@@ -72,17 +73,16 @@ func (s *Server) setupAdminRoutes(api fiber.Router) {
 func (s *Server) setupSetupRoutes(api fiber.Router) {
 	setup := api.Group("/setup")
 
-	setup.Post("/", s.handleSetup)
+	setup.Post("/", s.setupHandler.Setup)
 }
 
 func (s *Server) setupSourceRoutes(api fiber.Router) {
 	sources := api.Group("/sources")
-
 	sources.Use(middleware.SessionAuth(s.container.Session))
 
-	sources.Post("/", s.handleCreateSource)
-	sources.Get("/:id", s.handleGetSource)
-	sources.Get("/", s.handleListSources)
-	sources.Put("/:id", s.handleUpdateSource)
-	sources.Delete("/:id", s.handleDeleteSource)
+	sources.Post("/", middleware.RequirePermission(auth.PermissionWrite), s.sourceHandler.CreateSource)
+	sources.Get("/:id", s.sourceHandler.GetSource)
+	sources.Get("/", s.sourceHandler.ListSources)
+	sources.Put("/:id", middleware.RequireOwnershipOrAdmin("id"), s.sourceHandler.UpdateSource)
+	sources.Delete("/:id", middleware.RequireOwnershipOrAdmin("id"), s.sourceHandler.DeleteSource)
 }

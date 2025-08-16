@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/theotruvelot/catchook/internal/platform/auth"
 	source "github.com/theotruvelot/catchook/internal/source/domain"
 	"github.com/theotruvelot/catchook/pkg/logger"
 	"github.com/theotruvelot/catchook/pkg/response"
@@ -25,7 +26,7 @@ func NewSourceService(sourceRepo source.Repository, appLogger logger.Logger) sou
 	}
 }
 
-func (s sourceService) Create(ctx context.Context, req source.CreateRequest, currentUser *source.CurrentUser) (*source.Source, error) {
+func (s sourceService) Create(ctx context.Context, req source.CreateRequest) (*source.Source, error) {
 	ctx, span := tracer.StartSpan(ctx, "source.service.create")
 	defer span.End()
 
@@ -46,8 +47,14 @@ func (s sourceService) Create(ctx context.Context, req source.CreateRequest, cur
 		return nil, fmt.Errorf("building auth config: %w", err)
 	}
 
+	currentUserID, err := auth.GetUserID(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("getting current user id: %w", err)
+	}
+
 	newSource := &source.Source{
-		UserID:      currentUser.ID,
+		UserID:      currentUserID,
 		Name:        req.Name,
 		Description: req.Description,
 		Protocol:    req.Protocol,
@@ -180,7 +187,7 @@ func (s sourceService) List(ctx context.Context, page, limit int) ([]*source.Sou
 	return respList, meta, nil
 }
 
-func (s sourceService) Update(ctx context.Context, id string, req source.UpdateRequest, currentUser *source.CurrentUser) (*source.Source, error) {
+func (s sourceService) Update(ctx context.Context, id string, req source.UpdateRequest) (*source.Source, error) {
 	ctx, span := tracer.StartSpan(ctx, "source.service.update")
 	defer span.End()
 

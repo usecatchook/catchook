@@ -47,7 +47,7 @@ func RequestLogging(baseLogger logger.Logger) fiber.Handler {
 			logger.Int("response_size", len(c.Response().Body())),
 		}
 
-		if userID, exists := GetUserID(c); exists {
+		if userID, err := GetAuthUserID(c); err == nil {
 			responseFields = append(responseFields, logger.String("user_id", userID))
 		}
 

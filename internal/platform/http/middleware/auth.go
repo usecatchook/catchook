@@ -2,18 +2,10 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/theotruvelot/catchook/internal/platform/storage/postgres/generated"
-
+	"github.com/theotruvelot/catchook/internal/platform/auth"
 	"github.com/theotruvelot/catchook/internal/platform/session"
 	"github.com/theotruvelot/catchook/pkg/response"
 )
-
-const UserContextKey = "user"
-
-type User struct {
-	ID   string             `json:"id"`
-	Role generated.UserRole `json:"role"`
-}
 
 func SessionAuth(sessionManager session.Manager) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -27,50 +19,95 @@ func SessionAuth(sessionManager session.Manager) fiber.Handler {
 			return response.Unauthorized(c, "Invalid or expired session")
 		}
 
-		user := &User{
+		// Créer l'utilisateur et l'injecter dans le contexte
+		authUser := &auth.AuthUser{
 			ID:   session.UserID,
 			Role: session.Role,
 		}
 
-		c.Locals(UserContextKey, user)
+		ctx := auth.WithUser(c.Context(), authUser)
+		c.SetUserContext(ctx)
+
 		return c.Next()
 	}
 }
 
-func RequireRoles(roles ...string) fiber.Handler {
+// Helper pour récupérer l'utilisateur depuis le contexte Fiber
+func GetAuthUser(c *fiber.Ctx) (*auth.AuthUser, error) {
+	return auth.GetUser(c.Context())
+}
+
+func GetAuthUserID(c *fiber.Ctx) (string, error) {
+	return auth.GetUserID(c.Context())
+}
+
+// RequirePermission middleware qui vérifie une permission spécifique
+func RequirePermission(permission auth.Permission) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		user := GetUser(c)
-		if user == nil {
+		if err := auth.RequirePermission(c.Context(), permission); err != nil {
+			return response.Forbidden(c, "Insufficient permissions")
+		}
+		return c.Next()
+	}
+}
+
+// RequireAdmin middleware qui requiert les droits admin
+func RequireAdmin() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		if err := auth.RequireAdmin(c.Context()); err != nil {
+			return response.Forbidden(c, "Admin permissions required")
+		}
+		return c.Next()
+	}
+}
+
+// RequireOwnership middleware qui vérifie la propriété d'une resource
+// Le paramètre paramName indique dans quel paramètre URL trouver l'ID de la resource
+func RequireOwnership(paramName string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		resourceID := c.Params(paramName)
+		if resourceID == "" {
+			return response.BadRequest(c, "Resource ID is required", nil)
+		}
+
+		user, err := auth.GetUser(c.Context())
+		if err != nil {
 			return response.Unauthorized(c, "Authentication required")
 		}
 
-		for _, role := range roles {
-			if user.Role == generated.UserRole(role) {
-				return c.Next()
-			}
+		// Pour l'instant, on assume que l'ID de la resource est l'ID du propriétaire
+		// Dans un vrai système, il faudrait faire une query pour récupérer le propriétaire
+		if !user.CanManageResource(resourceID) {
+			return response.Forbidden(c, "You can only manage your own resources")
 		}
 
-		return response.Forbidden(c, "Insufficient permissions")
+		return c.Next()
 	}
 }
 
-func GetUser(c *fiber.Ctx) *User {
-	user := c.Locals(UserContextKey)
-	if user == nil {
-		return nil
-	}
+// RequireOwnershipOrAdmin combine ownership + droits admin
+func RequireOwnershipOrAdmin(paramName string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user, err := auth.GetUser(c.Context())
+		if err != nil {
+			return response.Unauthorized(c, "Authentication required")
+		}
 
-	if u, ok := user.(*User); ok {
-		return u
-	}
+		// Les admins passent toujours
+		if user.IsAdmin() {
+			return c.Next()
+		}
 
-	return nil
-}
+		// Sinon vérifier la propriété
+		resourceID := c.Params(paramName)
+		if resourceID == "" {
+			return response.BadRequest(c, "Resource ID is required", nil)
+		}
 
-func GetUserID(c *fiber.Ctx) (string, bool) {
-	user := GetUser(c)
-	if user == nil {
-		return "", false
+		if !user.CanManageResource(resourceID) {
+			return response.Forbidden(c, "Insufficient permissions")
+		}
+
+		return c.Next()
 	}
-	return user.ID, true
 }
